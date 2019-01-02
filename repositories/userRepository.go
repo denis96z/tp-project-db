@@ -27,8 +27,6 @@ const (
                 CONSTRAINT "user_about_not_null" NOT NULL
         );
 
-        CREATE UNIQUE INDEX IF NOT EXISTS "user_nickname_email_idx" ON "user"("nickname","email");
-
         CREATE OR REPLACE FUNCTION update_value(old_value TEXT, new_value TEXT)
         RETURNS TEXT
         AS $$
