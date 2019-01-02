@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"runtime/debug"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
 	"tp-project-db/services"
@@ -9,9 +11,7 @@ import (
 
 func main() {
 	_ = os.Setenv("PGHOST", "127.0.0.1")
-	_ = os.Setenv("PGPORT", "5432")
-	_ = os.Setenv("PGUSER", "user")
-	_ = os.Setenv("PGPASSWORD", "password")
+	_ = os.Setenv("PGUSER", "postgres")
 	_ = os.Setenv("PGDATABASE", "forum")
 
 	conn := repositories.NewConnection()
@@ -41,6 +41,6 @@ func main() {
 
 func handleErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("%v\n%s", err, string(debug.Stack())))
 	}
 }

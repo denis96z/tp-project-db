@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/jackc/pgx"
+	"log"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -92,10 +93,13 @@ func NewUserRepository(conn *Connection) *UserRepository {
 }
 
 func (r *UserRepository) Init() error {
+	log.Println("start")
+
 	_, err := r.conn.conn.Exec(CreateUserTableQuery)
 	if err != nil {
 		return err
 	}
+	log.Println("table created")
 
 	r.insertStmt, err = r.conn.conn.Prepare(
 		InsertUser,
@@ -104,6 +108,7 @@ func (r *UserRepository) Init() error {
 	if err != nil {
 		return err
 	}
+	log.Println("insert")
 
 	r.selectByNicknameStmt, err = r.conn.conn.Prepare(
 		SelectUserByNickname,
@@ -112,24 +117,27 @@ func (r *UserRepository) Init() error {
 	if err != nil {
 		return err
 	}
+	log.Println("select1")
 
-	r.selectByNicknameAndEmailStmt, err = r.conn.conn.Prepare(
+	/*r.selectByNicknameAndEmailStmt, err = r.conn.conn.Prepare(
 		SelectUserByNicknameOrEmail,
 		SelectUserByNicknameOrEmailQuery,
 	)
 	if err != nil {
 		return err
 	}
+	log.Println("select2")*/
 
-	r.updateByNicknameStmt, err = r.conn.conn.Prepare(
+	/*r.updateByNicknameStmt, err = r.conn.conn.Prepare(
 		UpdateUserByNickname,
 		UpdateUserByNicknameQuery,
 	)
 	if err != nil {
 		return err
 	}
+	log.Println("update")*/
 
-	return err
+	return nil
 }
 
 func (r *UserRepository) CreateUser(user *models.User) *errs.Error {
