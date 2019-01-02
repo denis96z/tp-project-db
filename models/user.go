@@ -9,34 +9,34 @@ import (
 //go:generate easyjson
 
 const (
-	NickNamePattern = `^\w+$`
+	NicknamePattern = `^\w+$`
 	EmailPattern    = `^.+@.+$`
 )
 
 //easyjson:json
 type User struct {
-	NickName string `json:"nickname"`
+	Nickname string `json:"nickname"`
 	FullName string `json:"fullname"`
 	Email    string `json:"email"`
 	About    string `json:"about"`
 }
 
 type UserValidator struct {
-	nickNameRegexp *regexp.Regexp
+	nicknameRegexp *regexp.Regexp
 	emailRegexp    *regexp.Regexp
 	err            *errs.Error
 }
 
 func NewUserValidator() *UserValidator {
 	return &UserValidator{
-		nickNameRegexp: regexp.MustCompile(NickNamePattern),
+		nicknameRegexp: regexp.MustCompile(NicknamePattern),
 		emailRegexp:    regexp.MustCompile(EmailPattern),
 		err:            errs.NewInvalidFormatError(ValidationErrMessage),
 	}
 }
 
 func (v *UserValidator) Validate(u *User) error {
-	if !v.nickNameRegexp.MatchString(u.NickName) {
+	if !v.nicknameRegexp.MatchString(u.Nickname) {
 		return v.err
 	}
 	if u.FullName == consts.EmptyString {
