@@ -4,6 +4,10 @@ import (
 	"github.com/jackc/pgx"
 )
 
+const (
+	NotFoundErrorText = "no rows in result set"
+)
+
 type Connection struct {
 	conn   *pgx.ConnPool
 	config pgx.ConnConfig

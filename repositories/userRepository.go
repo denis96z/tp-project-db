@@ -21,7 +21,8 @@ const (
             "fullname" TEXT
                 CONSTRAINT "user_fullname_not_null" NOT NULL,
             "email" TEXT
-                CONSTRAINT "user_email_not_null" NOT NULL,
+                CONSTRAINT "user_email_not_null" NOT NULL
+                CONSTRAINT "user_email_unique" UNIQUE,
             "about" TEXT
                 CONSTRAINT "user_about_not_null" NOT NULL
         );
@@ -67,7 +68,8 @@ const (
                 update_value("email",$3),
                 update_value("about",$4)
             )
-        WHERE "nickname" = $1;
+        WHERE "nickname" = $1
+        RETURNING "fullname","email","about";
     `
 )
 
@@ -162,15 +164,15 @@ func (r *UserRepository) FindUserByNickname(user *models.User) *errs.Error {
 	return nil
 }
 
-func (r *UserRepository) UpdateUserByNickname(nickname string, up *models.UserUpdate) *errs.Error {
-	res, err := r.conn.conn.Exec(UpdateUserByNickname,
-		up.FullName, up.Email, up.About,
+func (r *UserRepository) UpdateUserByNickname(user *models.User) *errs.Error {
+	row := r.conn.conn.QueryRow(UpdateUserByNickname,
+		user.Nickname, user.FullName, user.Email, user.About,
 	)
-	if err != nil {
+	if err := row.Scan(&user.FullName, &user.Email, &user.About); err != nil {
+		if err.Error() == NotFoundErrorText {
+			return r.notFoundErr
+		}
 		return r.conflictErr
-	}
-	if res.RowsAffected() != 1 {
-		return r.notFoundErr
 	}
 	return nil
 }

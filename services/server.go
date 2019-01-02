@@ -43,7 +43,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
-	r.POST("/api/user/:nickname/profile", srv.findUserByNickname)
+	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
 
 	srv.router = r
 	return srv

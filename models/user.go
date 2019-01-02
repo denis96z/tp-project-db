@@ -67,7 +67,7 @@ func NewUserUpdateValidator() *UserUpdateValidator {
 	}
 }
 
-func (v *UserUpdateValidator) Validate(u *UserUpdate) error {
+func (v *UserUpdateValidator) Validate(u *UserUpdate) *errs.Error {
 	if u.Email != consts.EmptyString && !v.emailRegexp.MatchString(u.Email) {
 		return v.err
 	}

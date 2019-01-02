@@ -45,16 +45,18 @@ func (srv *Server) updateUserByNickname(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	nickname := srv.readNickname(ctx)
-	if err := srv.components.UserRepository.UpdateUserByNickname(nickname, &up); err != nil {
+	if err := srv.components.UserUpdateValidator.Validate(&up); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
 
 	user := models.User{
-		Nickname: nickname,
+		Nickname: srv.readNickname(ctx),
+		FullName: up.FullName,
+		Email:    up.Email,
+		About:    up.About,
 	}
-	if err := srv.components.UserRepository.FindUserByNickname(&user); err != nil {
+	if err := srv.components.UserRepository.UpdateUserByNickname(&user); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
