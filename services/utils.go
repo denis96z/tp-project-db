@@ -14,11 +14,15 @@ func (srv *Server) ReadBody(ctx *fasthttp.RequestCtx, v easyjson.Unmarshaler) *e
 }
 
 func (srv *Server) WriteJSON(ctx *fasthttp.RequestCtx, status int, v easyjson.Marshaler) {
-
+	b, _ := easyjson.Marshal(v)
+	ctx.SetStatusCode(status)
+	ctx.Response.SetBody(b)
 }
 
 func (srv *Server) WriteError(ctx *fasthttp.RequestCtx, err *errs.Error) {
-
+	b, _ := easyjson.Marshal(err)
+	ctx.SetStatusCode(err.HttpStatus)
+	ctx.Response.SetBody(b)
 }
 
 func (srv *Server) readNickname(ctx *fasthttp.RequestCtx) string {

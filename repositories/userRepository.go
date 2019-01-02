@@ -15,7 +15,7 @@ const (
 	CreateUserTableQuery = `
 	    CREATE EXTENSION IF NOT EXISTS "citext";
 
-	    CREATE TABLE "user" (
+	    CREATE TABLE IF NOT EXISTS "user" (
             "nickname" CITEXT
                 CONSTRAINT "user_nickname_pk" PRIMARY KEY,
             "fullname" TEXT
@@ -26,7 +26,7 @@ const (
                 CONSTRAINT "user_about_not_null" NOT NULL
         );
 
-        CREATE UNIQUE INDEX "user_nickname_email_idx" ON "user"("nickname","email");
+        CREATE UNIQUE INDEX IF NOT EXISTS "user_nickname_email_idx" ON "user"("nickname","email");
 
         CREATE OR REPLACE FUNCTION update_value(old_value TEXT, new_value TEXT)
         RETURNS TEXT

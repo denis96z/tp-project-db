@@ -18,9 +18,9 @@ type ServerConfig struct {
 }
 
 type ServerComponents struct {
-	userValidator       *models.UserValidator
-	userUpdateValidator *models.UserUpdateValidator
-	userRepository      *repositories.UserRepository
+	UserValidator       *models.UserValidator
+	UserUpdateValidator *models.UserUpdateValidator
+	UserRepository      *repositories.UserRepository
 }
 
 type Server struct {
@@ -52,4 +52,8 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 func (srv *Server) Run() error {
 	addr := ":" + srv.config.Port
 	return fasthttp.ListenAndServe(addr, srv.router.Handler)
+}
+
+func (srv *Server) Shutdown() error {
+	return nil //TODO
 }

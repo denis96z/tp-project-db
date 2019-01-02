@@ -14,12 +14,12 @@ func (srv *Server) createUser(ctx *fasthttp.RequestCtx) {
 	}
 	user.Nickname = srv.readNickname(ctx)
 
-	if err := srv.components.userValidator.Validate(&user); err != nil {
+	if err := srv.components.UserValidator.Validate(&user); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
 
-	if err := srv.components.userRepository.CreateUser(&user); err != nil {
+	if err := srv.components.UserRepository.CreateUser(&user); err != nil {
 		srv.WriteJSON(ctx, err.HttpStatus, &user)
 		return
 	}
@@ -31,7 +31,7 @@ func (srv *Server) findUserByNickname(ctx *fasthttp.RequestCtx) {
 	user := models.User{
 		Nickname: srv.readNickname(ctx),
 	}
-	if err := srv.components.userRepository.FindUserByNickname(&user); err != nil {
+	if err := srv.components.UserRepository.FindUserByNickname(&user); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
@@ -46,7 +46,7 @@ func (srv *Server) updateUserByNickname(ctx *fasthttp.RequestCtx) {
 	}
 
 	nickname := srv.readNickname(ctx)
-	if err := srv.components.userRepository.UpdateUserByNickname(nickname, &up); err != nil {
+	if err := srv.components.UserRepository.UpdateUserByNickname(nickname, &up); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
@@ -54,7 +54,7 @@ func (srv *Server) updateUserByNickname(ctx *fasthttp.RequestCtx) {
 	user := models.User{
 		Nickname: nickname,
 	}
-	if err := srv.components.userRepository.FindUserByNickname(&user); err != nil {
+	if err := srv.components.UserRepository.FindUserByNickname(&user); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
