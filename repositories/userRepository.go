@@ -132,7 +132,7 @@ func (r *UserRepository) Init() error {
 	return err
 }
 
-func (r *UserRepository) CreateUser(user *models.User) error {
+func (r *UserRepository) CreateUser(user *models.User) *errs.Error {
 	res, err := r.conn.conn.Exec(InsertUser,
 		user.Nickname, user.FullName, user.Email, user.About,
 	)
@@ -154,7 +154,7 @@ func (r *UserRepository) CreateUser(user *models.User) error {
 	return r.conflictErr
 }
 
-func (r *UserRepository) FindUserByNickname(user *models.User) error {
+func (r *UserRepository) FindUserByNickname(user *models.User) *errs.Error {
 	row := r.conn.conn.QueryRow(SelectUserByNickname, user.Nickname)
 	if err := row.Scan(&user.FullName, &user.Email, &user.About); err != nil {
 		return r.notFoundErr
@@ -162,9 +162,9 @@ func (r *UserRepository) FindUserByNickname(user *models.User) error {
 	return nil
 }
 
-func (r *UserRepository) UpdateUserByNickname(user *models.User) error {
+func (r *UserRepository) UpdateUserByNickname(nickname string, up *models.UserUpdate) *errs.Error {
 	res, err := r.conn.conn.Exec(UpdateUserByNickname,
-		user.Nickname, user.FullName, user.Email, user.About,
+		up.FullName, up.Email, up.About,
 	)
 	if err != nil {
 		return r.conflictErr

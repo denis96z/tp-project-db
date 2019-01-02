@@ -3,6 +3,13 @@ package services
 import (
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
+	"tp-project-db/errs"
+	"tp-project-db/models"
+	"tp-project-db/repositories"
+)
+
+const (
+	InvalidFormatErrMessage = "invalid request parameter"
 )
 
 type ServerConfig struct {
@@ -11,23 +18,32 @@ type ServerConfig struct {
 }
 
 type ServerComponents struct {
+	userValidator       *models.UserValidator
+	userUpdateValidator *models.UserUpdateValidator
+	userRepository      *repositories.UserRepository
 }
 
 type Server struct {
-	router     *router.Router
+	router *router.Router
+
 	config     ServerConfig
 	components ServerComponents
+
+	invalidFormatErr *errs.Error
 }
 
 func NewServer(config ServerConfig, components ServerComponents) *Server {
 	srv := &Server{
-		config:     config,
-		components: components,
+		config:           config,
+		components:       components,
+		invalidFormatErr: errs.NewInvalidFormatError(InvalidFormatErrMessage),
 	}
 
 	r := router.New()
 
 	r.POST("/api/user/:nickname/create", srv.createUser)
+	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
+	r.POST("/api/user/:nickname/profile", srv.findUserByNickname)
 
 	srv.router = r
 	return srv

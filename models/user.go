@@ -35,7 +35,7 @@ func NewUserValidator() *UserValidator {
 	}
 }
 
-func (v *UserValidator) Validate(u *User) error {
+func (v *UserValidator) Validate(u *User) *errs.Error {
 	if !v.nicknameRegexp.MatchString(u.Nickname) {
 		return v.err
 	}
