@@ -1,6 +1,8 @@
 package repositories
 
-import "tp-project-db/errs"
+import (
+	"tp-project-db/errs"
+)
 
 const (
 	ThreadNotFoundErrMessage           = "thread not found"
