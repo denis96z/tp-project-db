@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"github.com/jackc/pgx"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -27,6 +26,7 @@ const (
     `
 
 	InsertUser                  = "insert_user"
+	SelectUserExistsByNickname  = "select_user_exists_by_nickname"
 	SelectUserByNickname        = "select_user_by_nickname"
 	SelectUserByNicknameOrEmail = "select_user_by_nickname_or_email"
 	UpdateUserByNickname        = "update_user_by_nickname"
@@ -34,6 +34,12 @@ const (
 	InsertUserQuery = `
         INSERT INTO "user"("nickname","fullname","email","about")
         VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING;
+    `
+
+	SelectUserExistsByNicknameQuery = `
+        SELECT EXISTS(
+            SELECT * FROM "user" WHERE "nickname" = $1
+        );
     `
 
 	SelectUserByNicknameQuery = `
@@ -61,13 +67,7 @@ const (
 )
 
 type UserRepository struct {
-	conn *Connection
-
-	insertStmt                   *pgx.PreparedStatement
-	selectByNicknameStmt         *pgx.PreparedStatement
-	selectByNicknameAndEmailStmt *pgx.PreparedStatement
-	updateByNicknameStmt         *pgx.PreparedStatement
-
+	conn        *Connection
 	notFoundErr *errs.Error
 	conflictErr *errs.Error
 }
@@ -81,47 +81,32 @@ func NewUserRepository(conn *Connection) *UserRepository {
 }
 
 func (r *UserRepository) Init() error {
-	conn := r.conn.conn
-
-	_, err := conn.Exec(CreateUserTableQuery)
-	if err != nil {
-		return err
-	}
-	conn.Reset()
-
-	r.insertStmt, err = conn.Prepare(
-		InsertUser,
-		InsertUserQuery,
-	)
+	err := r.conn.execInit(CreateUserTableQuery)
 	if err != nil {
 		return err
 	}
 
-	r.selectByNicknameStmt, err = conn.Prepare(
-		SelectUserByNickname,
-		SelectUserByNicknameQuery,
-	)
+	err = r.conn.prepareStmt(InsertUser, InsertUserQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectUserExistsByNickname, SelectUserExistsByNicknameQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectUserByNickname, SelectUserByNicknameQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectUserByNicknameOrEmail, SelectUserByNicknameOrEmailQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(UpdateUserByNickname, UpdateUserByNicknameQuery)
 	if err != nil {
 		return err
 	}
 
-	r.selectByNicknameAndEmailStmt, err = conn.Prepare(
-		SelectUserByNicknameOrEmail,
-		SelectUserByNicknameOrEmailQuery,
-	)
-	if err != nil {
-		return err
-	}
-
-	r.updateByNicknameStmt, err = conn.Prepare(
-		UpdateUserByNickname,
-		UpdateUserByNicknameQuery,
-	)
-	if err != nil {
-		return err
-	}
-
-	conn.Reset()
 	return nil
 }
 

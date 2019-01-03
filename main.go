@@ -25,6 +25,9 @@ func main() {
 	userRepository := repositories.NewUserRepository(conn)
 	handleErr(userRepository.Init())
 
+	forumRepository := repositories.NewForumRepository(conn)
+	handleErr(forumRepository.Init())
+
 	srv := services.NewServer(
 		services.ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),
@@ -34,6 +37,9 @@ func main() {
 			UserValidator:       models.NewUserValidator(),
 			UserUpdateValidator: models.NewUserUpdateValidator(),
 			UserRepository:      userRepository,
+
+			ForumValidator:  models.NewForumValidator(),
+			ForumRepository: forumRepository,
 		},
 	)
 

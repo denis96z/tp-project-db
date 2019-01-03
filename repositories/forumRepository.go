@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	AdminNotFoundErrMessage           = "admin not found"
 	ForumNotFoundErrMessage           = "forum not found"
 	ForumAttributeDuplicateErrMessage = "forum attribute duplicate"
 )
@@ -14,7 +15,7 @@ const (
 const (
 	CreateForumTableQuery = `
 	    CREATE TABLE IF NOT EXISTS "forum" (
-            "slug" TEXT
+            "slug" CITEXT
                 CONSTRAINT "forum_slug_pk" PRIMARY KEY,
             "title" TEXT
                 CONSTRAINT "forum_title_not_null" NOT NULL,
@@ -30,11 +31,17 @@ const (
         );
     `
 
-	InsertForum = "insert_forum"
+	InsertForum       = "insert_forum"
+	SelectForumBySlug = "select_forum_by_slug"
 
 	InsertForumQuery = `
         INSERT INTO "forum"("slug","title","admin")
         VALUES($1,$2,$3) ON CONFLICT DO NOTHING;
+    `
+	SelectForumBySlugQuery = `
+        SELECT f."slug",f."title",f."admin",f."num_threads",f."num_posts"
+        FROM "forum" f
+        WHERE f."slug" = $1;
     `
 )
 
@@ -43,51 +50,31 @@ type ForumRepository struct {
 
 	insertStmt *pgx.PreparedStatement
 
-	notFoundErr *errs.Error
-	conflictErr *errs.Error
+	notFoundErr      *errs.Error
+	conflictErr      *errs.Error
+	adminNotFoundErr *errs.Error
 }
 
 func NewForumRepository(conn *Connection) *ForumRepository {
 	return &ForumRepository{
-		conn:        conn,
-		notFoundErr: errs.NewNotFoundError(ForumNotFoundErrMessage),
-		conflictErr: errs.NewConflictError(ForumAttributeDuplicateErrMessage),
+		conn:             conn,
+		notFoundErr:      errs.NewNotFoundError(ForumNotFoundErrMessage),
+		conflictErr:      errs.NewConflictError(ForumAttributeDuplicateErrMessage),
+		adminNotFoundErr: errs.NewNotFoundError(AdminNotFoundErrMessage),
 	}
 }
 
-func (r *ForumRepository) Init() (err error) {
-	conn := r.conn.conn
-
-	tx, err := conn.Begin()
+func (r *ForumRepository) Init() error {
+	err := r.conn.execInit(CreateForumTableQuery)
 	if err != nil {
 		return err
 	}
 
-	_, err = conn.Exec(CreateForumTableQuery)
+	err = r.conn.prepareStmt(InsertForum, InsertForumQuery)
 	if err != nil {
 		return err
 	}
-
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	conn.Reset()
-
-	tx, err = conn.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = tx.Commit()
-		if err != nil {
-			conn.Reset()
-		}
-	}()
-
-	r.insertStmt, err = conn.Prepare(
-		InsertForum,
-		InsertForumQuery,
-	)
+	err = r.conn.prepareStmt(SelectForumBySlug, SelectForumBySlugQuery)
 	if err != nil {
 		return err
 	}
@@ -95,45 +82,36 @@ func (r *ForumRepository) Init() (err error) {
 	return nil
 }
 
-func (r *ForumRepository) CreateForum(forum *models.Forum) error {
-	tx, err := r.conn.conn.Begin()
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		err := tx.Commit()
+func (r *ForumRepository) CreateForum(forum *models.Forum) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		adminExists := false
+		row := tx.QueryRow(SelectUserExistsByNickname, forum.AdminNickname)
+		if err := row.Scan(&adminExists); err != nil {
+			panic(err)
+		}
+
+		if !adminExists {
+			return r.adminNotFoundErr
+		}
+
+		res, err := tx.Exec(InsertForum,
+			forum.Slug, forum.Title, forum.AdminNickname,
+		)
 		if err != nil {
 			panic(err)
 		}
-	}()
-
-	res, err := r.conn.conn.Exec(InsertForum,
-		forum.Slug, forum.Title, forum.AdminNickname,
-	)
-	if err != nil {
-		return errs.NewInternalError(err.Error())
-	}
-
-	if res.RowsAffected() == 1 {
-		return nil
-	}
-
-	rows, err := r.conn.conn.Query(SelectUserByNicknameOrEmail,
-		user.Nickname, user.Email,
-	)
-	if err != nil {
-		return errs.NewInternalError(err.Error())
-	}
-	defer rows.Close()
-
-	users := make([]models.User, 0, 1)
-	for rows.Next() {
-		if err := rows.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
-			return errs.NewInternalError(err.Error())
+		if res.RowsAffected() == 1 {
+			return nil
 		}
-		users = append(users, *user)
-	}
 
-	*existing = models.Users(users)
-	return r.conflictErr
+		row = tx.QueryRow(SelectForumBySlug, forum.Slug)
+		err = row.Scan(
+			&forum.Slug, &forum.Title, &forum.AdminNickname, &forum.NumThreads, &forum.NumPosts,
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		return r.conflictErr
+	})
 }

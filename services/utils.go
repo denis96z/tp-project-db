@@ -34,3 +34,7 @@ func (srv *Server) WriteError(ctx *fasthttp.RequestCtx, err *errs.Error) {
 func (srv *Server) readNickname(ctx *fasthttp.RequestCtx) string {
 	return ctx.UserValue("nickname").(string)
 }
+
+func (srv *Server) readSlug(ctx *fasthttp.RequestCtx) string {
+	return ctx.UserValue("slug").(string)
+}

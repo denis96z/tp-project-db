@@ -21,6 +21,9 @@ type ServerComponents struct {
 	UserValidator       *models.UserValidator
 	UserUpdateValidator *models.UserUpdateValidator
 	UserRepository      *repositories.UserRepository
+
+	ForumValidator  *models.ForumValidator
+	ForumRepository *repositories.ForumRepository
 }
 
 type Server struct {
@@ -41,6 +44,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	r := router.New()
 
+	r.POST("/api/forum/create", srv.createForum)
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)

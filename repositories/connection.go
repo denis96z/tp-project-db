@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"github.com/jackc/pgx"
+	"tp-project-db/errs"
 )
 
 type Connection struct {
@@ -56,17 +57,61 @@ const (
 )
 
 func (c *Connection) Init() error {
-	_, err := c.conn.Exec(CreateExtensionsQuery)
+	err := c.execInit(CreateExtensionsQuery)
 	if err != nil {
 		return err
 	}
-	c.conn.Reset()
 
-	_, err = c.conn.Exec(CreateFunctionsQuery)
+	err = c.execInit(CreateFunctionsQuery)
 	if err != nil {
 		return err
 	}
-	c.conn.Reset()
 
 	return nil
+}
+
+func (c *Connection) execInit(stmt string) error {
+	tx, err := c.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = tx.Commit()
+		if err != nil {
+			c.conn.Reset()
+		}
+	}()
+	_, err = tx.Exec(stmt)
+	return err
+}
+
+func (c *Connection) prepareStmt(stmt, sql string) error {
+	tx, err := c.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = tx.Commit()
+		if err != nil {
+			c.conn.Reset()
+		}
+	}()
+	_, err = tx.Prepare(stmt, sql)
+	return err
+}
+
+type TxOp func(tx *pgx.Tx) *errs.Error
+
+func (c *Connection) performTxOp(txOp TxOp) *errs.Error {
+	tx, err := c.conn.Begin()
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		err := tx.Commit()
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return txOp(tx)
 }
