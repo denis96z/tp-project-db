@@ -15,10 +15,10 @@ RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
 RUN apt-get update \
     && apt-get install -y postgresql-11
 
-RUN rm /etc/postgresql/11/main/pg_hba.conf \
-    && echo "local all all trust" > /etc/postgresql/11/main/pg_hba.conf \
-    && echo "host all all 0.0.0.0/0 trust" >> /etc/postgresql/11/main/pg_hba.conf \
-    && service postgresql start \
+COPY ./dbconfig /tmp/config
+RUN mv -f /tmp/config/pg_hba.conf /etc/postgresql/11/main/pg_hba.conf
+
+RUN service postgresql start \
     && psql -U postgres -c 'CREATE DATABASE forum;' \
     && service postgresql stop
 
