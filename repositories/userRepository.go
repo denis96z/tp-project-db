@@ -25,35 +25,35 @@ const (
         );
     `
 
-	InsertUser                  = "insert_user"
-	SelectUserExistsByNickname  = "select_user_exists_by_nickname"
-	SelectUserByNickname        = "select_user_by_nickname"
-	SelectUserByNicknameOrEmail = "select_user_by_nickname_or_email"
-	UpdateUserByNickname        = "update_user_by_nickname"
+	InsertUser                   = "insert_user"
+	SelectUserExistsByNickname   = "select_user_exists_by_nickname"
+	SelectUserNicknameByNickname = "select_user_nickname_by_nickname"
+	SelectUserByNickname         = "select_user_by_nickname"
+	SelectUserByNicknameOrEmail  = "select_user_by_nickname_or_email"
+	UpdateUserByNickname         = "update_user_by_nickname"
 
 	InsertUserQuery = `
         INSERT INTO "user"("nickname","fullname","email","about")
         VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING;
     `
-
+	SelectUserNicknameByNicknameQuery = `
+        SELECT u."nickname" FROM "user" u WHERE u."nickname" = $1;
+    `
 	SelectUserExistsByNicknameQuery = `
         SELECT EXISTS(
             SELECT * FROM "user" WHERE "nickname" = $1
         );
     `
-
 	SelectUserByNicknameQuery = `
         SELECT u."nickname",u."fullname",u."email",u."about"
         FROM "user" u
         WHERE u."nickname" = $1;
     `
-
 	SelectUserByNicknameOrEmailQuery = `
         SELECT u."nickname",u."fullname",u."email",u."about"
         FROM "user" u
         WHERE u."nickname" = $1 OR u."email" = $2;
     `
-
 	UpdateUserByNicknameQuery = `
         UPDATE "user" SET
             ("fullname","email","about") = (
@@ -91,6 +91,10 @@ func (r *UserRepository) Init() error {
 		return err
 	}
 	err = r.conn.prepareStmt(SelectUserExistsByNickname, SelectUserExistsByNicknameQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectUserNicknameByNickname, SelectUserNicknameByNicknameQuery)
 	if err != nil {
 		return err
 	}

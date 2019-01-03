@@ -84,13 +84,8 @@ func (r *ForumRepository) Init() error {
 
 func (r *ForumRepository) CreateForum(forum *models.Forum) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
-		adminExists := false
-		row := tx.QueryRow(SelectUserExistsByNickname, forum.AdminNickname)
-		if err := row.Scan(&adminExists); err != nil {
-			panic(err)
-		}
-
-		if !adminExists {
+		row := tx.QueryRow(SelectUserNicknameByNickname, forum.AdminNickname)
+		if err := row.Scan(&forum.AdminNickname); err != nil {
 			return r.adminNotFoundErr
 		}
 
@@ -114,4 +109,15 @@ func (r *ForumRepository) CreateForum(forum *models.Forum) *errs.Error {
 
 		return r.conflictErr
 	})
+}
+
+func (r *ForumRepository) FindForumBySlug(forum *models.Forum) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectForumBySlug, forum.Slug)
+	err := row.Scan(
+		&forum.Slug, &forum.Title, &forum.AdminNickname, &forum.NumThreads, &forum.NumPosts,
+	)
+	if err != nil {
+		return r.notFoundErr
+	}
+	return nil
 }

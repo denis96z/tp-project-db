@@ -29,3 +29,17 @@ func (srv *Server) createForum(ctx *fasthttp.RequestCtx) {
 
 	srv.WriteJSON(ctx, http.StatusCreated, &forum)
 }
+
+func (srv *Server) findForumBySlug(ctx *fasthttp.RequestCtx) {
+	slug := srv.readSlug(ctx)
+
+	forum := models.Forum{
+		Slug: slug,
+	}
+	if err := srv.components.ForumRepository.FindForumBySlug(&forum); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, &forum)
+}

@@ -45,6 +45,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r := router.New()
 
 	r.POST("/api/forum/create", srv.createForum)
+	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
