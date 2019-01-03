@@ -46,10 +46,7 @@ const (
 )
 
 type ForumRepository struct {
-	conn *Connection
-
-	insertStmt *pgx.PreparedStatement
-
+	conn             *Connection
 	notFoundErr      *errs.Error
 	conflictErr      *errs.Error
 	adminNotFoundErr *errs.Error

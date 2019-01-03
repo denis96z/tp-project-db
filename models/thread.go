@@ -4,14 +4,14 @@ package models
 
 //easyjson:json
 type Thread struct {
-	ID             int32  `json:"id"`
-	Slug           string `json:"slug"`
-	ForumSlug      string `json:"forum"`
-	AuthorNickName string `json:"author"`
-	Title          string `json:"title"`
-	Message        string `json:"message"`
-	Timestamp      string `json:"created"`
-	NumVotes       int32  `json:"votes"`
+	ID               int32     `json:"id"`
+	Slug             string    `json:"slug"`
+	ForumSlug        string    `json:"forum"`
+	AuthorNickname   string    `json:"author"`
+	Title            string    `json:"title"`
+	Message          string    `json:"message"`
+	CreatedTimestamp Timestamp `json:"created"`
+	NumVotes         int32     `json:"votes"`
 }
 
 type ThreadValidator struct {

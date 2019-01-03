@@ -192,13 +192,15 @@ func easyjson2d00218DecodeTpProjectDbModels2(in *jlexer.Lexer, out *Thread) {
 		case "forum":
 			out.ForumSlug = string(in.String())
 		case "author":
-			out.AuthorNickName = string(in.String())
+			out.AuthorNickname = string(in.String())
 		case "title":
 			out.Title = string(in.String())
 		case "message":
 			out.Message = string(in.String())
 		case "created":
-			out.Timestamp = string(in.String())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.CreatedTimestamp).UnmarshalJSON(data))
+			}
 		case "votes":
 			out.NumVotes = int32(in.Int32())
 		default:
@@ -253,7 +255,7 @@ func easyjson2d00218EncodeTpProjectDbModels2(out *jwriter.Writer, in Thread) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.AuthorNickName))
+		out.String(string(in.AuthorNickname))
 	}
 	{
 		const prefix string = ",\"title\":"
@@ -283,7 +285,7 @@ func easyjson2d00218EncodeTpProjectDbModels2(out *jwriter.Writer, in Thread) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.Timestamp))
+		out.Raw((in.CreatedTimestamp).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"votes\":"
