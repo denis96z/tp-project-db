@@ -13,8 +13,6 @@ const (
 
 const (
 	CreateUserTableQuery = `
-	    CREATE EXTENSION IF NOT EXISTS "citext";
-
 	    CREATE TABLE IF NOT EXISTS "user" (
             "nickname" CITEXT
                 CONSTRAINT "user_nickname_pk" PRIMARY KEY,
@@ -26,15 +24,6 @@ const (
             "about" TEXT
                 CONSTRAINT "user_about_not_null" NOT NULL
         );
-
-        CREATE OR REPLACE FUNCTION update_value(old_value TEXT, new_value TEXT)
-        RETURNS TEXT
-        AS $$
-            SELECT CASE
-                WHEN new_value = '' THEN old_value
-                ELSE new_value
-            END;
-        $$ LANGUAGE SQL;
     `
 
 	InsertUser                  = "insert_user"

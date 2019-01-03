@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -19,6 +20,7 @@ func main() {
 	defer func() {
 		handleErr(conn.Close())
 	}()
+	handleErr(conn.Init())
 
 	userRepository := repositories.NewUserRepository(conn)
 	handleErr(userRepository.Init())
@@ -43,6 +45,7 @@ func main() {
 		ch <- os.Kill
 	}()
 
+	log.Println("server started...")
 	<-ch
 
 	handleErr(srv.Shutdown())
