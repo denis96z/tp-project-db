@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"tp-project-db/config"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
 	"tp-project-db/services"
 )
 
 func main() {
-	_ = os.Setenv("PGHOST", "127.0.0.1")
-	_ = os.Setenv("PGUSER", "postgres")
-	_ = os.Setenv("PGDATABASE", "forum")
+	config.Load()
 
 	conn := repositories.NewConnection()
 	handleErr(conn.Open())
@@ -25,7 +24,8 @@ func main() {
 
 	srv := services.NewServer(
 		services.ServerConfig{
-			Port: "5000",
+			Host: os.Getenv("SERVER_HOST"),
+			Port: os.Getenv("SERVER_PORT"),
 		},
 		services.ServerComponents{
 			UserValidator:       models.NewUserValidator(),

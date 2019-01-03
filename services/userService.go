@@ -19,8 +19,13 @@ func (srv *Server) createUser(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err := srv.components.UserRepository.CreateUser(&user); err != nil {
-		srv.WriteJSON(ctx, err.HttpStatus, &user)
+	var existing models.Users
+	if err := srv.components.UserRepository.CreateUser(&user, &existing); err != nil {
+		if err.HttpStatus == http.StatusConflict {
+			srv.WriteJSON(ctx, err.HttpStatus, &existing)
+		} else {
+			srv.WriteJSON(ctx, err.HttpStatus, &user)
+		}
 		return
 	}
 

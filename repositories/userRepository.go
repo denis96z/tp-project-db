@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"github.com/jackc/pgx"
-	"log"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -21,7 +20,7 @@ const (
                 CONSTRAINT "user_nickname_pk" PRIMARY KEY,
             "fullname" TEXT
                 CONSTRAINT "user_fullname_not_null" NOT NULL,
-            "email" TEXT
+            "email" CITEXT
                 CONSTRAINT "user_email_not_null" NOT NULL
                 CONSTRAINT "user_email_unique" UNIQUE,
             "about" TEXT
@@ -49,7 +48,7 @@ const (
     `
 
 	SelectUserByNicknameQuery = `
-        SELECT u."fullname",u."email",u."about"
+        SELECT u."nickname",u."fullname",u."email",u."about"
         FROM "user" u
         WHERE u."nickname" = $1;
     `
@@ -68,7 +67,7 @@ const (
                 update_value("about",$4)
             )
         WHERE "nickname" = $1
-        RETURNING "fullname","email","about";
+        RETURNING "nickname","fullname","email","about";
     `
 )
 
@@ -93,54 +92,52 @@ func NewUserRepository(conn *Connection) *UserRepository {
 }
 
 func (r *UserRepository) Init() error {
-	log.Println("start")
-
-	_, err := r.conn.conn.Exec(CreateUserTableQuery)
+	conn, err := r.conn.conn.Acquire()
 	if err != nil {
 		return err
 	}
-	log.Println("table created")
 
-	r.insertStmt, err = r.conn.conn.Prepare(
+	_, err = conn.Exec(CreateUserTableQuery)
+	if err != nil {
+		return err
+	}
+
+	r.insertStmt, err = conn.Prepare(
 		InsertUser,
 		InsertUserQuery,
 	)
 	if err != nil {
 		return err
 	}
-	log.Println("insert")
 
-	r.selectByNicknameStmt, err = r.conn.conn.Prepare(
+	r.selectByNicknameStmt, err = conn.Prepare(
 		SelectUserByNickname,
 		SelectUserByNicknameQuery,
 	)
 	if err != nil {
 		return err
 	}
-	log.Println("select1")
 
-	/*r.selectByNicknameAndEmailStmt, err = r.conn.conn.Prepare(
+	r.selectByNicknameAndEmailStmt, err = conn.Prepare(
 		SelectUserByNicknameOrEmail,
 		SelectUserByNicknameOrEmailQuery,
 	)
 	if err != nil {
 		return err
 	}
-	log.Println("select2")*/
 
-	/*r.updateByNicknameStmt, err = r.conn.conn.Prepare(
+	r.updateByNicknameStmt, err = conn.Prepare(
 		UpdateUserByNickname,
 		UpdateUserByNicknameQuery,
 	)
 	if err != nil {
 		return err
 	}
-	log.Println("update")*/
 
-	return nil
+	return conn.Close()
 }
 
-func (r *UserRepository) CreateUser(user *models.User) *errs.Error {
+func (r *UserRepository) CreateUser(user *models.User, existing *models.Users) *errs.Error {
 	res, err := r.conn.conn.Exec(InsertUser,
 		user.Nickname, user.FullName, user.Email, user.About,
 	)
@@ -152,19 +149,29 @@ func (r *UserRepository) CreateUser(user *models.User) *errs.Error {
 		return nil
 	}
 
-	row := r.conn.conn.QueryRow(SelectUserByNicknameOrEmail,
+	rows, err := r.conn.conn.Query(SelectUserByNicknameOrEmail,
 		user.Nickname, user.Email,
 	)
-	if err := row.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
+	if err != nil {
 		return errs.NewInternalError(err.Error())
 	}
+	defer rows.Close()
 
+	users := make([]models.User, 0, 1)
+	for rows.Next() {
+		if err := rows.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
+			return errs.NewInternalError(err.Error())
+		}
+		users = append(users, *user)
+	}
+
+	*existing = models.Users(users)
 	return r.conflictErr
 }
 
 func (r *UserRepository) FindUserByNickname(user *models.User) *errs.Error {
 	row := r.conn.conn.QueryRow(SelectUserByNickname, user.Nickname)
-	if err := row.Scan(&user.FullName, &user.Email, &user.About); err != nil {
+	if err := row.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
 		return r.notFoundErr
 	}
 	return nil
@@ -174,7 +181,7 @@ func (r *UserRepository) UpdateUserByNickname(user *models.User) *errs.Error {
 	row := r.conn.conn.QueryRow(UpdateUserByNickname,
 		user.Nickname, user.FullName, user.Email, user.About,
 	)
-	if err := row.Scan(&user.FullName, &user.Email, &user.About); err != nil {
+	if err := row.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
 		if err.Error() == NotFoundErrorText {
 			return r.notFoundErr
 		}

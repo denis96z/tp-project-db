@@ -9,7 +9,7 @@ import (
 //go:generate easyjson
 
 const (
-	NicknamePattern = `^\w+$`
+	NicknamePattern = `^(\w|\.)+$`
 	EmailPattern    = `^.+@.+$`
 )
 
