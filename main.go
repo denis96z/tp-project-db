@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"tp-project-db/config"
 	"tp-project-db/models"
@@ -33,10 +34,18 @@ func main() {
 			UserRepository:      userRepository,
 		},
 	)
-	handleErr(srv.Run())
-	defer func() {
-		handleErr(srv.Shutdown())
+
+	ch := make(chan os.Signal)
+	signal.Notify(ch, os.Interrupt)
+
+	go func() {
+		handleErr(srv.Run())
+		ch <- os.Kill
 	}()
+
+	<-ch
+
+	handleErr(srv.Shutdown())
 }
 
 func handleErr(err error) {
