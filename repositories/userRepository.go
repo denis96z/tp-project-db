@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"github.com/jackc/pgx"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -63,6 +64,9 @@ const (
             )
         WHERE "nickname" = $1
         RETURNING "nickname","fullname","email","about";
+    `
+	TruncateUserTableQuery = `
+        TRUNCATE "user" CASCADE;
     `
 )
 
@@ -165,4 +169,14 @@ func (r *UserRepository) UpdateUserByNickname(user *models.User) *errs.Error {
 		return r.conflictErr
 	}
 	return nil
+}
+
+func (r *UserRepository) DeleteAllUsers() *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		_, err := tx.Exec(TruncateUserTableQuery)
+		if err != nil {
+			panic(err)
+		}
+		return nil
+	})
 }

@@ -68,3 +68,7 @@ func (srv *Server) updateUserByNickname(ctx *fasthttp.RequestCtx) {
 
 	srv.WriteJSON(ctx, http.StatusOK, &user)
 }
+
+func (srv *Server) deleteAllUsers(ctx *fasthttp.RequestCtx) {
+	_ = srv.components.UserRepository.DeleteAllUsers()
+}
