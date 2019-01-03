@@ -92,15 +92,13 @@ func NewUserRepository(conn *Connection) *UserRepository {
 }
 
 func (r *UserRepository) Init() error {
-	conn, err := r.conn.conn.Acquire()
-	if err != nil {
-		return err
-	}
+	conn := r.conn.conn
 
-	_, err = conn.Exec(CreateUserTableQuery)
+	_, err := conn.Exec(CreateUserTableQuery)
 	if err != nil {
 		return err
 	}
+	conn.Reset()
 
 	r.insertStmt, err = conn.Prepare(
 		InsertUser,
@@ -134,7 +132,8 @@ func (r *UserRepository) Init() error {
 		return err
 	}
 
-	return conn.Close()
+	conn.Reset()
+	return nil
 }
 
 func (r *UserRepository) CreateUser(user *models.User, existing *models.Users) *errs.Error {
