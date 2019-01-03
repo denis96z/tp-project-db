@@ -4,10 +4,6 @@ import (
 	"github.com/jackc/pgx"
 )
 
-const (
-	NotFoundErrorText = "no rows in result set"
-)
-
 type Connection struct {
 	conn   *pgx.ConnPool
 	config pgx.ConnConfig
@@ -38,6 +34,10 @@ func (c *Connection) Close() error {
 	c.conn.Close()
 	return nil
 }
+
+const (
+	NotFoundErrorText = "no rows in result set"
+)
 
 const (
 	CreateExtensionsQuery = `
