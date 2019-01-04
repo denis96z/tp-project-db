@@ -38,3 +38,7 @@ func (srv *Server) readNickname(ctx *fasthttp.RequestCtx) string {
 func (srv *Server) readSlug(ctx *fasthttp.RequestCtx) string {
 	return ctx.UserValue("slug").(string)
 }
+
+func (srv *Server) readSlugOrID(ctx *fasthttp.RequestCtx) string {
+	return ctx.UserValue("slug_or_id").(string)
+}

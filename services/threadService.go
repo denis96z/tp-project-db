@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/valyala/fasthttp"
 	"net/http"
+	"strconv"
 	"tp-project-db/models"
 )
 
@@ -29,4 +30,29 @@ func (srv *Server) createThread(ctx *fasthttp.RequestCtx) {
 	}
 
 	srv.WriteJSON(ctx, http.StatusCreated, &thread)
+}
+
+func (srv *Server) findThreadBySlugOrID(ctx *fasthttp.RequestCtx) {
+	var thread models.Thread
+	slug := srv.readSlugOrID(ctx)
+
+	id, err := strconv.ParseInt(slug, 10, 32)
+	if err == nil {
+		thread.ID = int32(id)
+		if err := srv.components.ThreadRepository.FindThreadByID(&thread); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	} else {
+		thread.Slug = models.NullString{
+			Valid:  true,
+			String: slug,
+		}
+		if err := srv.components.ThreadRepository.FindThreadBySlug(&thread); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, &thread)
 }

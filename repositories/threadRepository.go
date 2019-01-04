@@ -53,10 +53,9 @@ const (
         $$ LANGUAGE PLPGSQL;
 
         CREATE TRIGGER "thread_insert_trg"
-            AFTER INSERT ON "thread"
-            REFERENCING NEW TABLE AS "inserted"
-            FOR EACH STATEMENT
-            EXECUTE PROCEDURE inc_forum_num_threads();
+        AFTER INSERT ON "thread"
+        FOR EACH ROW
+        EXECUTE PROCEDURE inc_forum_num_threads();
     `
 
 	InsertThread       = "insert_thread"
@@ -154,6 +153,23 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 
 		return r.conflictErr
 	})
+}
+
+func (r *ThreadRepository) FindThreadByID(thread *models.Thread) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadByID, thread.ID)
+	if err := r.scanThread(row, thread); err != nil {
+		return r.notFoundErr
+	}
+	return nil
+}
+
+func (r *ThreadRepository) FindThreadBySlug(thread *models.Thread) *errs.Error {
+	slug, _ := thread.Slug.Value()
+	row := r.conn.conn.QueryRow(SelectThreadBySlug, slug)
+	if err := r.scanThread(row, thread); err != nil {
+		return r.notFoundErr
+	}
+	return nil
 }
 
 func (r *ThreadRepository) scanThread(row *pgx.Row, thread *models.Thread) error {
