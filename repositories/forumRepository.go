@@ -31,12 +31,16 @@ const (
         );
     `
 
-	InsertForum       = "insert_forum"
-	SelectForumBySlug = "select_forum_by_slug"
+	InsertForum           = "insert_forum"
+	SelectForumSlugBySlug = "select_forum_slug_by_slug"
+	SelectForumBySlug     = "select_forum_by_slug"
 
 	InsertForumQuery = `
         INSERT INTO "forum"("slug","title","admin")
         VALUES($1,$2,$3) ON CONFLICT DO NOTHING;
+    `
+	SelectForumSlugBySlugQuery = `
+        SELECT f."slug" FROM "forum" f WHERE f."slug" = $1;
     `
 	SelectForumBySlugQuery = `
         SELECT f."slug",f."title",f."admin",f."num_threads",f."num_posts"
@@ -68,6 +72,10 @@ func (r *ForumRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(InsertForum, InsertForumQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectForumSlugBySlug, SelectForumSlugBySlugQuery)
 	if err != nil {
 		return err
 	}
