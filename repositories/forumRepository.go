@@ -29,6 +29,14 @@ const (
                 DEFAULT(0)
                 CONSTRAINT "forum_num_posts_not_null" NOT NULL
         );
+
+        CREATE OR REPLACE FUNCTION inc_forum_num_threads(_forum_ CITEXT)
+        RETURNS VOID
+        AS $$
+             UPDATE "forum" SET
+                 "num_threads" = "num_threads" + 1
+             WHERE "slug" = _forum_;
+        $$ LANGUAGE SQL;
     `
 
 	InsertForum           = "insert_forum"

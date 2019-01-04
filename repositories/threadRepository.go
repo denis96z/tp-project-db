@@ -40,6 +40,23 @@ const (
         );
 
         CREATE UNIQUE INDEX "thread_slug_idx" ON "thread"("slug");
+
+        CREATE OR REPLACE FUNCTION inc_forum_num_threads()
+        RETURNS TRIGGER AS
+        $$
+        BEGIN
+            UPDATE "forum" SET
+                "num_threads" = "num_threads" + 1
+            WHERE "slug" = NEW."forum";
+            RETURN NEW;
+        END;
+        $$ LANGUAGE PLPGSQL;
+
+        CREATE TRIGGER "thread_insert_trg"
+            AFTER INSERT ON "thread"
+            REFERENCING NEW TABLE AS "inserted"
+            FOR EACH STATEMENT
+            EXECUTE PROCEDURE inc_forum_num_threads();
     `
 
 	InsertThread       = "insert_thread"
