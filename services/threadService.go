@@ -20,9 +20,13 @@ func (srv *Server) createThread(ctx *fasthttp.RequestCtx) {
 	}
 
 	if err := srv.components.ThreadRepository.CreateThread(&thread); err != nil {
-		srv.WriteError(ctx, err)
+		if err.HttpStatus == http.StatusConflict {
+			srv.WriteJSON(ctx, err.HttpStatus, &thread)
+		} else {
+			srv.WriteError(ctx, err)
+		}
 		return
 	}
 
-	srv.WriteJSON(ctx, http.StatusOK, &thread)
+	srv.WriteJSON(ctx, http.StatusCreated, &thread)
 }

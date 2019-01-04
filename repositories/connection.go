@@ -108,10 +108,7 @@ func (c *Connection) performTxOp(txOp TxOp) *errs.Error {
 		panic(err)
 	}
 	defer func() {
-		err := tx.Commit()
-		if err != nil {
-			panic(err)
-		}
+		_ = tx.Commit()
 	}()
 	return txOp(tx)
 }
