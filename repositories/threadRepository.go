@@ -60,12 +60,20 @@ const (
     `
 
 	InsertThread       = "insert_thread"
+	SelectThreadByID   = "select_thread_by_id"
 	SelectThreadBySlug = "select_thread_by_slug"
 
 	InsertThreadQuery = `
         INSERT INTO "thread"("slug","title","forum","author","created_timestamp","message")
         VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING
         RETURNING "id";
+    `
+	SelectThreadByIDQuery = `
+         SELECT th."id",th."slug",th."title",
+               th."forum",th."author",th."created_timestamp",
+               th."message",th."num_votes"
+        FROM "thread" th
+        WHERE th."id" = $1;
     `
 	SelectThreadBySlugQuery = `
         SELECT th."id",th."slug",th."title",
@@ -104,6 +112,10 @@ func (r *ThreadRepository) Init() error {
 	if err != nil {
 		return err
 	}
+	err = r.conn.prepareStmt(SelectThreadByID, SelectThreadByIDQuery)
+	if err != nil {
+		return err
+	}
 	err = r.conn.prepareStmt(SelectThreadBySlug, SelectThreadBySlugQuery)
 	if err != nil {
 		return err
@@ -136,15 +148,18 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 		}
 
 		row = tx.QueryRow(SelectThreadBySlug, slug)
-		err := row.Scan(
-			&thread.ID, &thread.Slug, &thread.Title,
-			&thread.Forum, &thread.Author, &thread.CreatedTimestamp,
-			&thread.Message, &thread.NumVotes,
-		)
-		if err != nil {
+		if err := r.scanThread(row, thread); err != nil {
 			panic(err)
 		}
 
 		return r.conflictErr
 	})
+}
+
+func (r *ThreadRepository) scanThread(row *pgx.Row, thread *models.Thread) error {
+	return row.Scan(
+		&thread.ID, &thread.Slug, &thread.Title,
+		&thread.Forum, &thread.Author, &thread.CreatedTimestamp,
+		&thread.Message, &thread.NumVotes,
+	)
 }
