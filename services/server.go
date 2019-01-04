@@ -24,10 +24,14 @@ type ServerComponents struct {
 
 	ForumValidator  *models.ForumValidator
 	ForumRepository *repositories.ForumRepository
+
+	ThreadValidator       *models.ThreadValidator
+	ThreadUpdateValidator *models.ThreadUpdateValidator
+	ThreadRepository      *repositories.ThreadRepository
 }
 
 type Server struct {
-	router *router.Router
+	handler fasthttp.RequestHandler
 
 	config     ServerConfig
 	components ServerComponents
@@ -44,20 +48,28 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	r := router.New()
 
-	r.POST("/api/forum/create", srv.createForum)
+	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
 	r.POST("/api/service/clear", srv.deleteAllUsers)
 
-	srv.router = r
+	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			if string(ctx.Path()) == "/api/forum/create" {
+				srv.createForum(ctx)
+				return
+			}
+			r.Handler(ctx)
+		}
+	}(r)
 	return srv
 }
 
 func (srv *Server) Run() error {
 	addr := ":" + srv.config.Port
-	return fasthttp.ListenAndServe(addr, srv.router.Handler)
+	return fasthttp.ListenAndServe(addr, srv.handler)
 }
 
 func (srv *Server) Shutdown() error {

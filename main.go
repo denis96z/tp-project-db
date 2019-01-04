@@ -28,6 +28,9 @@ func main() {
 	forumRepository := repositories.NewForumRepository(conn)
 	handleErr(forumRepository.Init())
 
+	threadRepository := repositories.NewThreadRepository(conn)
+	handleErr(threadRepository.Init())
+
 	srv := services.NewServer(
 		services.ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),
@@ -40,6 +43,10 @@ func main() {
 
 			ForumValidator:  models.NewForumValidator(),
 			ForumRepository: forumRepository,
+
+			ThreadValidator:       models.NewThreadValidator(),
+			ThreadUpdateValidator: models.NewThreadUpdateValidator(),
+			ThreadRepository:      threadRepository,
 		},
 	)
 

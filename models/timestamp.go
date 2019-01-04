@@ -1,28 +1,49 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/json"
-	"time"
+	"github.com/go-openapi/strfmt"
+	"github.com/mailru/easyjson"
 )
 
-const (
-	TimestampFormat = "2017-01-01T00:00:00.000Z"
-)
-
-type Timestamp struct {
-	Null  bool
-	Value time.Time
+type NullTimestamp struct {
+	Valid     bool
+	Timestamp strfmt.DateTime
 }
 
-func (t *Timestamp) MarshalJSON() ([]byte, error) {
-	if t.Null {
-		return NullSlice, nil
+func (t *NullTimestamp) MarshalJSON() ([]byte, error) {
+	if t.Valid {
+		return easyjson.Marshal(t.Timestamp)
 	}
-	return []byte(t.Value.Format(TimestampFormat)), nil
+	return NullSlice, nil
 }
 
-func (t *Timestamp) UnmarshalJSON(b []byte) error {
-	err := json.Unmarshal(b, &t.Value)
-	t.Null = err == nil
+func (t *NullTimestamp) UnmarshalJSON(b []byte) error {
+	var tStr string
+	err := json.Unmarshal(b, &tStr)
+	if tStr == "null" {
+		t.Valid = false
+		return nil
+	}
+
+	t.Timestamp, err = strfmt.ParseDateTime(tStr)
+	if err != nil {
+		return err
+	}
+
+	t.Valid = true
 	return nil
+}
+
+func (t *NullTimestamp) Scan(value interface{}) error {
+	t.Timestamp, t.Valid = value.(strfmt.DateTime)
+	return nil
+}
+
+func (t *NullTimestamp) Value() (driver.Value, error) {
+	if t.Valid {
+		return t.Timestamp, nil
+	}
+	return nil, nil
 }

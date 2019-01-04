@@ -77,7 +77,7 @@ func (c *Connection) execInit(stmt string) error {
 	}
 	defer func() {
 		err = tx.Commit()
-		if err != nil {
+		if err == nil {
 			c.conn.Reset()
 		}
 	}()
@@ -92,7 +92,7 @@ func (c *Connection) prepareStmt(stmt, sql string) error {
 	}
 	defer func() {
 		err = tx.Commit()
-		if err != nil {
+		if err == nil {
 			c.conn.Reset()
 		}
 	}()

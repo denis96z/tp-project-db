@@ -14,14 +14,14 @@ const (
 
 //easyjson:json
 type Thread struct {
-	ID               int32     `json:"id"`
-	Slug             string    `json:"slug"`
-	Forum            string    `json:"forum"`
-	Author           string    `json:"author"`
-	Title            string    `json:"title"`
-	Message          string    `json:"message"`
-	CreatedTimestamp Timestamp `json:"created"`
-	NumVotes         int32     `json:"votes"`
+	ID               int32         `json:"id"`
+	Slug             string        `json:"slug"`
+	Forum            string        `json:"forum"`
+	Author           string        `json:"author"`
+	Title            string        `json:"title"`
+	Message          string        `json:"message"`
+	CreatedTimestamp NullTimestamp `json:"created"`
+	NumVotes         int32         `json:"votes"`
 }
 
 type ThreadValidator struct {
@@ -37,7 +37,7 @@ func NewThreadValidator() *ThreadValidator {
 }
 
 func (v *ThreadValidator) Validate(thread *Thread) *errs.Error {
-	if !v.slugRegexp.MatchString(thread.Slug) {
+	if thread.Slug != consts.EmptyString && !v.slugRegexp.MatchString(thread.Slug) {
 		return v.err
 	}
 	if thread.Title == consts.EmptyString {
