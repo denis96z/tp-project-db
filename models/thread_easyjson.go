@@ -190,9 +190,9 @@ func easyjson2d00218DecodeTpProjectDbModels2(in *jlexer.Lexer, out *Thread) {
 		case "slug":
 			out.Slug = string(in.String())
 		case "forum":
-			out.ForumSlug = string(in.String())
+			out.Forum = string(in.String())
 		case "author":
-			out.AuthorNickname = string(in.String())
+			out.Author = string(in.String())
 		case "title":
 			out.Title = string(in.String())
 		case "message":
@@ -245,7 +245,7 @@ func easyjson2d00218EncodeTpProjectDbModels2(out *jwriter.Writer, in Thread) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.ForumSlug))
+		out.String(string(in.Forum))
 	}
 	{
 		const prefix string = ",\"author\":"
@@ -255,7 +255,7 @@ func easyjson2d00218EncodeTpProjectDbModels2(out *jwriter.Writer, in Thread) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.AuthorNickname))
+		out.String(string(in.Author))
 	}
 	{
 		const prefix string = ",\"title\":"

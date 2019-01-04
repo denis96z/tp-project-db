@@ -1,13 +1,23 @@
 package models
 
+import (
+	"regexp"
+	"tp-project-db/consts"
+	"tp-project-db/errs"
+)
+
 //go:generate easyjson
+
+const (
+	ThreadSlugPattern = `^(\d|\w|-|_)*(\w|-|_)(\d|\w|-|_)*$`
+)
 
 //easyjson:json
 type Thread struct {
 	ID               int32     `json:"id"`
 	Slug             string    `json:"slug"`
-	ForumSlug        string    `json:"forum"`
-	AuthorNickname   string    `json:"author"`
+	Forum            string    `json:"forum"`
+	Author           string    `json:"author"`
 	Title            string    `json:"title"`
 	Message          string    `json:"message"`
 	CreatedTimestamp Timestamp `json:"created"`
@@ -15,11 +25,31 @@ type Thread struct {
 }
 
 type ThreadValidator struct {
-	//TODO
+	slugRegexp *regexp.Regexp
+	err        *errs.Error
 }
 
 func NewThreadValidator() *ThreadValidator {
-	return &ThreadValidator{} //TODO
+	return &ThreadValidator{
+		slugRegexp: regexp.MustCompile(ThreadSlugPattern),
+		err:        errs.NewInvalidFormatError(ValidationErrMessage),
+	}
+}
+
+func (v *ThreadValidator) Validate(thread *Thread) *errs.Error {
+	if !v.slugRegexp.MatchString(thread.Slug) {
+		return v.err
+	}
+	if thread.Title == consts.EmptyString {
+		return v.err
+	}
+	if thread.Author == consts.EmptyString {
+		return v.err
+	}
+	if thread.Message == consts.EmptyString {
+		return v.err
+	}
+	return nil
 }
 
 //easyjson:json
@@ -29,11 +59,17 @@ type ThreadUpdate struct {
 }
 
 type ThreadUpdateValidator struct {
-	//TODO
+	err *errs.Error
 }
 
 func NewThreadUpdateValidator() *ThreadUpdateValidator {
-	return &ThreadUpdateValidator{} //TODO
+	return &ThreadUpdateValidator{
+		err: errs.NewInvalidFormatError(ValidationErrMessage),
+	}
+}
+
+func (v *ThreadUpdateValidator) Validate(threadUpdate *ThreadUpdate) *errs.Error {
+	return nil
 }
 
 //easyjson:json

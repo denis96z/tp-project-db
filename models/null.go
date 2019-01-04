@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 )
 
+var (
+	NullSlice = []byte("null")
+)
+
 type NullString sql.NullString
 
 func (ns *NullString) Scan(value interface{}) error {
