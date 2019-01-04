@@ -20,7 +20,7 @@ const (
             "id" SERIAL
                 CONSTRAINT "thread_id_pk" PRIMARY KEY,
             "slug" CITEXT
-                CONSTRAINT "thread_slug_not_null" NOT NULL
+                CONSTRAINT "thread_slug_nullable" NULL
                 CONSTRAINT "thread_slug_unique" UNIQUE,
             "title" TEXT
                 CONSTRAINT "thread_title_not_null" NOT NULL,
@@ -38,6 +38,8 @@ const (
                 DEFAULT(0)
                 CONSTRAINT "thread_num_votes_not_null" NOT NULL
         );
+
+        CREATE UNIQUE INDEX "thread_slug_idx" ON "thread"("slug");
     `
 
 	InsertThread       = "insert_thread"
@@ -45,7 +47,8 @@ const (
 
 	InsertThreadQuery = `
         INSERT INTO "thread"("slug","title","forum","author","created_timestamp","message")
-        VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING;
+        VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING
+        RETURNING "id";
     `
 	SelectThreadBySlugQuery = `
         SELECT th."id",th."slug",th."title",
@@ -106,18 +109,17 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 			}
 		}
 
-		res, err := tx.Exec(InsertForum,
-			thread.Slug, thread.Title, thread.Forum, thread.Author, thread.CreatedTimestamp, thread.Message,
+		slug, _ := thread.Slug.Value()
+		tStp, _ := thread.CreatedTimestamp.Value()
+		row = tx.QueryRow(InsertThread,
+			slug, thread.Title, thread.Forum, thread.Author, tStp, thread.Message,
 		)
-		if err != nil {
-			panic(err)
-		}
-		if res.RowsAffected() == 1 {
+		if err := row.Scan(&thread.ID); err == nil {
 			return nil
 		}
 
-		row = tx.QueryRow(SelectThreadBySlug, thread.Slug)
-		err = row.Scan(
+		row = tx.QueryRow(SelectThreadBySlug, slug)
+		err := row.Scan(
 			&thread.ID, &thread.Slug, &thread.Title,
 			&thread.Forum, &thread.Author, &thread.CreatedTimestamp,
 			&thread.Message, &thread.NumVotes,

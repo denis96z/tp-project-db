@@ -86,17 +86,7 @@ func (c *Connection) execInit(stmt string) error {
 }
 
 func (c *Connection) prepareStmt(stmt, sql string) error {
-	tx, err := c.conn.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = tx.Commit()
-		if err == nil {
-			c.conn.Reset()
-		}
-	}()
-	_, err = tx.Prepare(stmt, sql)
+	_, err := c.conn.Prepare(stmt, sql)
 	return err
 }
 

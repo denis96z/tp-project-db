@@ -188,7 +188,9 @@ func easyjson2d00218DecodeTpProjectDbModels2(in *jlexer.Lexer, out *Thread) {
 		case "id":
 			out.ID = int32(in.Int32())
 		case "slug":
-			out.Slug = string(in.String())
+			if data := in.Raw(); in.Ok() {
+				in.AddError((out.Slug).UnmarshalJSON(data))
+			}
 		case "forum":
 			out.Forum = string(in.String())
 		case "author":
@@ -235,7 +237,7 @@ func easyjson2d00218EncodeTpProjectDbModels2(out *jwriter.Writer, in Thread) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.Slug))
+		out.Raw((in.Slug).MarshalJSON())
 	}
 	{
 		const prefix string = ",\"forum\":"
