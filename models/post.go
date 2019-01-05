@@ -44,3 +44,6 @@ func (v *PostValidator) Validate(post *Post) *errs.Error {
 
 //easyjson:json
 type Posts []Post
+
+//easyjson:json
+type PostFull map[string]interface{}

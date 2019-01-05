@@ -22,6 +22,11 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	if err := srv.components.ThreadRepository.CheckThreadExists(threadID); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
 	var posts models.Posts
 	if err := srv.ReadBody(ctx, &posts); err != nil {
 		srv.WriteError(ctx, srv.invalidFormatErr)
@@ -33,13 +38,7 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 		Timestamp: strfmt.DateTime(time.Now()),
 	}
 
-	n := len(posts)
-	if n == 0 {
-		srv.WriteJSON(ctx, http.StatusNotFound, srv.invalidFormatErr)
-		return
-	}
-
-	for i := 0; i < n; i++ {
+	for i := 0; i < len(posts); i++ {
 		posts[i].Thread = threadID
 		posts[i].CreatedTimestamp = currentTimestamp
 

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/go-openapi/strfmt"
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"strconv"
@@ -60,11 +59,12 @@ func (srv *Server) findThreadBySlugOrID(ctx *fasthttp.RequestCtx) {
 }
 
 func (srv *Server) findThreadsByForum(ctx *fasthttp.RequestCtx) {
-	var since strfmt.DateTime
-	err := srv.readSince(ctx, &since)
+	since := models.NullTimestamp{
+		Valid: true,
+	}
+	err := srv.readSince(ctx, &since.Timestamp)
 	if err != nil {
-		srv.WriteError(ctx, srv.invalidFormatErr)
-		return
+		since.Valid = false
 	}
 
 	args := repositories.ForumThreadsSearchArgs{

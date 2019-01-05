@@ -41,6 +41,24 @@ const (
                 DEFAULT(FALSE)
                 CONSTRAINT "post_is_edited_not_null" NOT NULL
         );
+
+        CREATE OR REPLACE FUNCTION post_insert_trigger_func()
+        RETURNS TRIGGER AS
+        $$
+        BEGIN
+            UPDATE "forum" SET
+                "num_posts" = "num_posts" + 1
+            WHERE "slug" = NEW."forum";
+            RETURN NEW;
+        END;
+        $$ LANGUAGE PLPGSQL;
+
+        DROP TRIGGER IF EXISTS "post_insert_trigger" ON "post";
+
+        CREATE TRIGGER "post_insert_trigger"
+        AFTER INSERT ON "post"
+        FOR EACH ROW
+        EXECUTE PROCEDURE post_insert_trigger_func();
     `
 
 	InsertPost                    = "insert_post"
@@ -137,6 +155,10 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 		post.IsEdited = false
 		return nil
 	})
+}
+
+func (r *PostRepository) FindPostByID(id int64, post *models.PostFull) *errs.Error {
+	return nil //TODO
 }
 
 func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {

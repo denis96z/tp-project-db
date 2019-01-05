@@ -31,13 +31,17 @@ const (
         );
     `
 
-	InsertForum           = "insert_forum"
-	SelectForumSlugBySlug = "select_forum_slug_by_slug"
-	SelectForumBySlug     = "select_forum_by_slug"
+	InsertForum             = "insert_forum"
+	SelectForumExistsBySlug = "select_forum_exists_by_slug"
+	SelectForumSlugBySlug   = "select_forum_slug_by_slug"
+	SelectForumBySlug       = "select_forum_by_slug"
 
 	InsertForumQuery = `
         INSERT INTO "forum"("slug","title","admin")
         VALUES($1,$2,$3) ON CONFLICT DO NOTHING;
+    `
+	SelectForumExistsBySlugQuery = `
+        SELECT EXISTS(SELECT * FROM "forum" f WHERE f."slug" = $1);
     `
 	SelectForumSlugBySlugQuery = `
         SELECT f."slug" FROM "forum" f WHERE f."slug" = $1;
@@ -72,6 +76,10 @@ func (r *ForumRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(InsertForum, InsertForumQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectForumExistsBySlug, SelectForumExistsBySlugQuery)
 	if err != nil {
 		return err
 	}

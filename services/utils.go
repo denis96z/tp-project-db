@@ -49,6 +49,10 @@ func (srv *Server) readDescFlag(ctx *fasthttp.RequestCtx) bool {
 }
 
 func (srv *Server) readSince(ctx *fasthttp.RequestCtx, since *strfmt.DateTime) error {
+	value := ctx.QueryArgs().Peek("since")
+	if len(value) == 0 {
+		return srv.invalidFormatErr
+	}
 	return since.UnmarshalText(ctx.QueryArgs().Peek("since"))
 }
 

@@ -83,7 +83,87 @@ func (v *Posts) UnmarshalJSON(data []byte) error {
 func (v *Posts) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson5a72dc82DecodeTpProjectDbModels(l, v)
 }
-func easyjson5a72dc82DecodeTpProjectDbModels1(in *jlexer.Lexer, out *Post) {
+func easyjson5a72dc82DecodeTpProjectDbModels1(in *jlexer.Lexer, out *PostFull) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		in.Skip()
+	} else {
+		in.Delim('{')
+		if !in.IsDelim('}') {
+			*out = make(PostFull)
+		} else {
+			*out = nil
+		}
+		for !in.IsDelim('}') {
+			key := string(in.String())
+			in.WantColon()
+			var v4 interface{}
+			if m, ok := v4.(easyjson.Unmarshaler); ok {
+				m.UnmarshalEasyJSON(in)
+			} else if m, ok := v4.(json.Unmarshaler); ok {
+				_ = m.UnmarshalJSON(in.Raw())
+			} else {
+				v4 = in.Interface()
+			}
+			(*out)[key] = v4
+			in.WantComma()
+		}
+		in.Delim('}')
+	}
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson5a72dc82EncodeTpProjectDbModels1(out *jwriter.Writer, in PostFull) {
+	if in == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
+		out.RawString(`null`)
+	} else {
+		out.RawByte('{')
+		v5First := true
+		for v5Name, v5Value := range in {
+			if v5First {
+				v5First = false
+			} else {
+				out.RawByte(',')
+			}
+			out.String(string(v5Name))
+			out.RawByte(':')
+			if m, ok := v5Value.(easyjson.Marshaler); ok {
+				m.MarshalEasyJSON(out)
+			} else if m, ok := v5Value.(json.Marshaler); ok {
+				out.Raw(m.MarshalJSON())
+			} else {
+				out.Raw(json.Marshal(v5Value))
+			}
+		}
+		out.RawByte('}')
+	}
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v PostFull) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson5a72dc82EncodeTpProjectDbModels1(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v PostFull) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson5a72dc82EncodeTpProjectDbModels1(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *PostFull) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson5a72dc82DecodeTpProjectDbModels1(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *PostFull) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson5a72dc82DecodeTpProjectDbModels1(l, v)
+}
+func easyjson5a72dc82DecodeTpProjectDbModels2(in *jlexer.Lexer, out *Post) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -130,7 +210,7 @@ func easyjson5a72dc82DecodeTpProjectDbModels1(in *jlexer.Lexer, out *Post) {
 		in.Consumed()
 	}
 }
-func easyjson5a72dc82EncodeTpProjectDbModels1(out *jwriter.Writer, in Post) {
+func easyjson5a72dc82EncodeTpProjectDbModels2(out *jwriter.Writer, in Post) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -220,23 +300,23 @@ func easyjson5a72dc82EncodeTpProjectDbModels1(out *jwriter.Writer, in Post) {
 // MarshalJSON supports json.Marshaler interface
 func (v Post) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson5a72dc82EncodeTpProjectDbModels1(&w, v)
+	easyjson5a72dc82EncodeTpProjectDbModels2(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Post) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson5a72dc82EncodeTpProjectDbModels1(w, v)
+	easyjson5a72dc82EncodeTpProjectDbModels2(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Post) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson5a72dc82DecodeTpProjectDbModels1(&r, v)
+	easyjson5a72dc82DecodeTpProjectDbModels2(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Post) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson5a72dc82DecodeTpProjectDbModels1(l, v)
+	easyjson5a72dc82DecodeTpProjectDbModels2(l, v)
 }
