@@ -41,7 +41,7 @@ const (
 
         CREATE UNIQUE INDEX IF NOT EXISTS "thread_slug_idx" ON "thread"("slug");
 
-        CREATE OR REPLACE FUNCTION inc_forum_num_threads()
+        CREATE OR REPLACE FUNCTION thread_insert_trigger_func()
         RETURNS TRIGGER AS
         $$
         BEGIN
@@ -52,12 +52,12 @@ const (
         END;
         $$ LANGUAGE PLPGSQL;
 
-        DROP TRIGGER IF EXISTS "thread_insert_trg" ON "thread";
+        DROP TRIGGER IF EXISTS "thread_insert_trigger" ON "thread";
 
-        CREATE TRIGGER "thread_insert_trg"
+        CREATE TRIGGER "thread_insert_trigger"
         AFTER INSERT ON "thread"
         FOR EACH ROW
-        EXECUTE PROCEDURE inc_forum_num_threads();
+        EXECUTE PROCEDURE thread_insert_trigger_func();
 
         CREATE OR REPLACE FUNCTION perform_select_threads_by_forum_query(
             _forum_ TEXT, _since_ TIMESTAMPTZ, _desc_flag_ BOOLEAN, _limit_ INTEGER)
