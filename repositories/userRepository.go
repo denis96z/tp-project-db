@@ -1,7 +1,10 @@
 package repositories
 
 import (
+	"fmt"
 	"github.com/jackc/pgx"
+	"log"
+	"tp-project-db/consts"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -33,6 +36,7 @@ const (
 	SelectUserByNicknameOrEmail  = "select_user_by_nickname_or_email"
 	UpdateUserByNickname         = "update_user_by_nickname"
 
+	UserAttributes  = `u."nickname",u."fullname",u."email",u."about"`
 	InsertUserQuery = `
         INSERT INTO "user"("nickname","fullname","email","about")
         VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING;
@@ -158,6 +162,81 @@ func (r *UserRepository) FindUserByNickname(user *models.User) *errs.Error {
 	return nil
 }
 
+type UsersByForumSearchArgs struct {
+	Forum string
+	Since string
+	Desc  bool
+	Limit int
+}
+
+func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models.Users, *errs.Error) {
+	query := `
+        SELECT ` + UserAttributes + `
+        FROM "user" u
+        JOIN (
+            SELECT f."admin" AS "nickname"
+            FROM "forum" f
+            WHERE f."slug" = $1
+            UNION DISTINCT
+            SELECT th."author" AS "nickname"
+            FROM "thread" th
+            WHERE th."forum" = $1
+            UNION DISTINCT
+            SELECT p."author" AS "nickname"
+            FROM "post" p
+            WHERE p."forum" = $1
+        ) q ON q."nickname" = u."nickname"
+    `
+	qArgs := []interface{}{args.Forum}
+	qArgsIndex := 1
+
+	if args.Since != consts.EmptyString {
+		qArgs = append(qArgs, args.Since)
+		qArgsIndex++
+		query += fmt.Sprintf(`WHERE u."nickname" > $%d`, qArgsIndex)
+	}
+	query += ` ORDER BY u."nickname" `
+	if args.Desc {
+		query += `DESC`
+	} else {
+		query += `ASC`
+	}
+	if args.Limit != 0 {
+		qArgs = append(qArgs, args.Limit)
+		qArgsIndex++
+		query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+	}
+	query += `;`
+
+	log.Println(query, qArgs)
+
+	rows, err := r.conn.conn.Query(query, qArgs...)
+	if err != nil {
+		return nil, r.notFoundErr
+	}
+	defer rows.Close()
+
+	users := make([]models.User, 0)
+	for rows.Next() {
+		var user models.User
+		err = r.scanUser(rows.Scan, &user)
+		if err != nil {
+			panic(err)
+		}
+		users = append(users, user)
+	}
+
+	if len(users) == 0 {
+		var exists bool
+		row := r.conn.conn.QueryRow(SelectForumExistsBySlugQuery, args.Forum)
+		if _ = row.Scan(&exists); !exists {
+			return nil, r.notFoundErr
+		}
+	}
+
+	return (*models.Users)(&users), nil
+}
+
 func (r *UserRepository) UpdateUserByNickname(user *models.User) *errs.Error {
 	row := r.conn.conn.QueryRow(UpdateUserByNickname,
 		user.Nickname, user.FullName, user.Email, user.About,
@@ -179,4 +258,10 @@ func (r *UserRepository) DeleteAllUsers() *errs.Error {
 		}
 		return nil
 	})
+}
+
+func (r *UserRepository) scanUser(f ScanFunc, user *models.User) error {
+	return f(
+		&user.Nickname, &user.FullName, &user.Email, &user.About,
+	)
 }

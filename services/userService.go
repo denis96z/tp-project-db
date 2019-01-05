@@ -4,6 +4,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"tp-project-db/models"
+	"tp-project-db/repositories"
 )
 
 func (srv *Server) createUser(ctx *fasthttp.RequestCtx) {
@@ -41,6 +42,21 @@ func (srv *Server) findUserByNickname(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	srv.WriteJSON(ctx, http.StatusOK, &user)
+}
+
+func (srv *Server) findUsersByForum(ctx *fasthttp.RequestCtx) {
+	args := repositories.UsersByForumSearchArgs{
+		Forum: srv.readSlug(ctx),
+		Since: srv.readSinceNickname(ctx),
+		Desc:  srv.readDescFlag(ctx),
+		Limit: srv.readLimit(ctx),
+	}
+	users, err := srv.components.UserRepository.FindUsersByForum(&args)
+	if err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+	srv.WriteJSON(ctx, http.StatusOK, users)
 }
 
 func (srv *Server) updateUserByNickname(ctx *fasthttp.RequestCtx) {

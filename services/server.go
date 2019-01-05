@@ -54,6 +54,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
+	r.GET("/api/forum/:slug/users", srv.findUsersByForum)
 	r.POST("/api/thread/:slug_or_id/create", srv.createPost)
 	r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
 	r.POST("/api/thread/:slug_or_id/details", srv.updateThread)

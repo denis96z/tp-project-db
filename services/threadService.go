@@ -62,7 +62,7 @@ func (srv *Server) findThreadsByForum(ctx *fasthttp.RequestCtx) {
 	since := models.NullTimestamp{
 		Valid: true,
 	}
-	err := srv.readSince(ctx, &since.Timestamp)
+	err := srv.readSinceTimestamp(ctx, &since.Timestamp)
 	if err != nil {
 		since.Valid = false
 	}

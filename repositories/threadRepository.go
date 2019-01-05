@@ -39,7 +39,9 @@ const (
                 CONSTRAINT "thread_num_votes_not_null" NOT NULL
         );
 
-        CREATE UNIQUE INDEX IF NOT EXISTS "thread_slug_idx" ON "thread"("slug");
+        CREATE INDEX IF NOT EXISTS "thread_slug_idx" ON "thread"("slug");
+        CREATE INDEX IF NOT EXISTS "thread_forum_idx" ON "thread"("forum");
+        CREATE INDEX IF NOT EXISTS "thread_author_idx" ON "thread"("author");
 
         CREATE OR REPLACE FUNCTION thread_insert_trigger_func()
         RETURNS TRIGGER AS
@@ -67,7 +69,6 @@ const (
 	SelectThreadForumByID    = "select_thread_forum_by_id"
 	SelectThreadByID         = "select_thread_by_id"
 	SelectThreadBySlug       = "select_thread_by_slug"
-	SelectThreadsByForum     = "select_threads_by_forum"
 	UpdateThreadByID         = "update_thread_by_id"
 	UpdateThreadBySlug       = "update_thread_by_slug"
 
@@ -101,10 +102,6 @@ const (
         SELECT ` + ThreadAttributes + `
         FROM "thread" th
         WHERE th."slug" = $1;
-    `
-	SelectThreadsByForumQuery = `
-        SELECT ` + ThreadAttributes + `
-        FROM perform_select_threads_by_forum_query($1,$2,$3,$4) th;
     `
 	UpdateThreadByIDQuery = `
         UPDATE "thread" SET
@@ -179,10 +176,6 @@ func (r *ThreadRepository) Init() error {
 		return err
 	}
 	err = r.conn.prepareStmt(SelectThreadBySlug, SelectThreadBySlugQuery)
-	if err != nil {
-		return err
-	}
-	err = r.conn.prepareStmt(SelectThreadsByForum, SelectThreadsByForumQuery)
 	if err != nil {
 		return err
 	}

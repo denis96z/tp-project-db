@@ -29,6 +29,8 @@ const (
                 DEFAULT(0)
                 CONSTRAINT "forum_num_posts_not_null" NOT NULL
         );
+
+		CREATE INDEX IF NOT EXISTS "forum_admin_idx" ON "forum"("admin");
     `
 
 	InsertForum             = "insert_forum"
