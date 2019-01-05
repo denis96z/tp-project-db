@@ -3,7 +3,6 @@ package repositories
 import (
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
-	"tp-project-db/consts"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -85,10 +84,11 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertThread         = "insert_thread"
-	SelectThreadByID     = "select_thread_by_id"
-	SelectThreadBySlug   = "select_thread_by_slug"
-	SelectThreadsByForum = "select_threads_by_forum"
+	InsertThread          = "insert_thread"
+	SelectThreadForumByID = "select_thread_forum_by_id"
+	SelectThreadByID      = "select_thread_by_id"
+	SelectThreadBySlug    = "select_thread_by_slug"
+	SelectThreadsByForum  = "select_threads_by_forum"
 
 	InsertThreadQuery = `
         INSERT INTO "thread"("slug","title","forum","author","created_timestamp","message")
@@ -98,6 +98,9 @@ const (
 	ThreadAttributes = `
         th."id",th."slug",th."title", th."forum",th."author",
         th."created_timestamp", th."message",th."num_votes"
+    `
+	SelectThreadForumByIDQuery = `
+        SELECT th."forum" FROM "thread" th WHERE th."id" = $1);
     `
 	SelectThreadByIDQuery = `
         SELECT ` + ThreadAttributes + `
@@ -143,6 +146,10 @@ func (r *ThreadRepository) Init() error {
 	if err != nil {
 		return err
 	}
+	err = r.conn.prepareStmt(SelectThreadForumByID, SelectThreadForumByIDQuery)
+	if err != nil {
+		return err
+	}
 	err = r.conn.prepareStmt(SelectThreadByID, SelectThreadByIDQuery)
 	if err != nil {
 		return err
@@ -166,11 +173,9 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 			return r.authorNotFoundErr
 		}
 
-		if thread.Forum != consts.EmptyString {
-			row := tx.QueryRow(SelectForumSlugBySlug, thread.Forum)
-			if err := row.Scan(&thread.Forum); err != nil {
-				return r.forumNotFoundErr
-			}
+		row = tx.QueryRow(SelectForumSlugBySlug, thread.Forum)
+		if err := row.Scan(&thread.Forum); err != nil {
+			return r.forumNotFoundErr
 		}
 
 		slug, _ := thread.Slug.Value()

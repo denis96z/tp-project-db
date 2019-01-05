@@ -1,5 +1,11 @@
 package repositories
 
+import (
+	"github.com/jackc/pgx"
+	"tp-project-db/errs"
+	"tp-project-db/models"
+)
+
 const (
 	PostNotFoundErrMessage           = "post not found"
 	PostAuthorNotFoundErrMessage     = "post author not found"
@@ -35,4 +41,91 @@ const (
                 CONSTRAINT "post_is_edited_not_null" NOT NULL
         );
     `
+
+	InsertPost           = "insert_post"
+	SelectPostExistsByID = "select_post_exists_by_id"
+
+	InsertPostQuery = `
+        INSERT INTO "post"(
+            "parent_id","author","forum","thread",
+            "message","created_timestamp"
+        )
+        VALUES($1,$2,$3,$4,$5,$6)
+        RETURNING "id";
+    `
+	SelectPostExistsByIDQuery = `
+        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1);
+    `
 )
+
+type PostRepository struct {
+	conn              *Connection
+	notFoundErr       *errs.Error
+	conflictErr       *errs.Error
+	authorNotFoundErr *errs.Error
+	forumNotFoundErr  *errs.Error
+	threadNotFoundErr *errs.Error
+}
+
+func NewPostRepository(conn *Connection) *PostRepository {
+	return &PostRepository{
+		conn:              conn,
+		notFoundErr:       errs.NewNotFoundError(PostNotFoundErrMessage),
+		conflictErr:       errs.NewConflictError(PostAttributeDuplicateErrMessage),
+		authorNotFoundErr: errs.NewNotFoundError(PostAuthorNotFoundErrMessage),
+		forumNotFoundErr:  errs.NewNotFoundError(PostForumNotFoundErrMessage),
+		threadNotFoundErr: errs.NewNotFoundError(PostThreadNotFoundErrMessage),
+	}
+}
+
+func (r *PostRepository) Init() error {
+	err := r.conn.execInit(CreatePostTableQuery)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(InsertPost, InsertPostQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectPostExistsByID, SelectPostExistsByIDQuery)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PostRepository) CreateService(post *models.Post) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(SelectPostExistsByID)
+		if err := row.Scan(&post.ParentID); err != nil {
+			return r.conflictErr
+		}
+
+		row = tx.QueryRow(SelectThreadForumByID, post.Thread)
+		if err := row.Scan(&post.Forum); err != nil {
+			return r.threadNotFoundErr
+		}
+
+		tStp, _ := post.CreatedTimestamp.Value()
+		row = tx.QueryRow(InsertThread,
+			post.ParentID, post.Author, post.Forum,
+			post.Thread, post.Message, tStp,
+		)
+		if err := row.Scan(&post.ID); err != nil {
+			panic(err)
+		}
+
+		post.IsEdited = false
+		return nil
+	})
+}
+
+func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
+	return f(
+		&post.ID, &post.ParentID, &post.Author,
+		&post.Forum, &post.Thread, &post.Message,
+		&post.CreatedTimestamp, &post.IsEdited,
+	)
+}
