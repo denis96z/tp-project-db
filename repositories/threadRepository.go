@@ -85,6 +85,7 @@ const (
     `
 
 	InsertThread          = "insert_thread"
+	SelectThreadIDBySlug  = "select_thread_id_by_slug"
 	SelectThreadForumByID = "select_thread_forum_by_id"
 	SelectThreadByID      = "select_thread_by_id"
 	SelectThreadBySlug    = "select_thread_by_slug"
@@ -98,6 +99,9 @@ const (
 	ThreadAttributes = `
         th."id",th."slug",th."title", th."forum",th."author",
         th."created_timestamp", th."message",th."num_votes"
+    `
+	SelectThreadIDBySlugQuery = `
+        SELECT th."id" FROM "thread" th WHERE th."id" = $1;
     `
 	SelectThreadForumByIDQuery = `
         SELECT th."forum" FROM "thread" th WHERE th."id" = $1);
@@ -143,6 +147,10 @@ func (r *ThreadRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(InsertThread, InsertThreadQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(SelectThreadIDBySlug, SelectThreadIDBySlugQuery)
 	if err != nil {
 		return err
 	}
@@ -194,6 +202,14 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 
 		return r.conflictErr
 	})
+}
+
+func (r *ThreadRepository) FindThreadIDBySlug(id *int32, slug string) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadIDBySlug, slug)
+	if err := row.Scan(id); err != nil {
+		return r.notFoundErr
+	}
+	return nil
 }
 
 func (r *ThreadRepository) FindThreadByID(thread *models.Thread) *errs.Error {

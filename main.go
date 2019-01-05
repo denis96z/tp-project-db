@@ -31,6 +31,9 @@ func main() {
 	threadRepository := repositories.NewThreadRepository(conn)
 	handleErr(threadRepository.Init())
 
+	postRepository := repositories.NewPostRepository(conn)
+	handleErr(postRepository.Init())
+
 	srv := services.NewServer(
 		services.ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),
@@ -47,6 +50,9 @@ func main() {
 			ThreadValidator:       models.NewThreadValidator(),
 			ThreadUpdateValidator: models.NewThreadUpdateValidator(),
 			ThreadRepository:      threadRepository,
+
+			PostValidator:  models.NewPostValidator(),
+			PostRepository: postRepository,
 		},
 	)
 

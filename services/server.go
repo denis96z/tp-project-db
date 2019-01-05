@@ -28,6 +28,9 @@ type ServerComponents struct {
 	ThreadValidator       *models.ThreadValidator
 	ThreadUpdateValidator *models.ThreadUpdateValidator
 	ThreadRepository      *repositories.ThreadRepository
+
+	PostValidator  *models.PostValidator
+	PostRepository *repositories.PostRepository
 }
 
 type Server struct {
@@ -51,6 +54,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
+	r.POST("/api/thread/:slug_or_id/create", srv.createPost)
 	r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)

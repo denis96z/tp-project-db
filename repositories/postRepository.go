@@ -96,7 +96,7 @@ func (r *PostRepository) Init() error {
 	return nil
 }
 
-func (r *PostRepository) CreateService(post *models.Post) *errs.Error {
+func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
 		row := tx.QueryRow(SelectPostExistsByID)
 		if err := row.Scan(&post.ParentID); err != nil {
