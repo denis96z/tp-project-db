@@ -37,7 +37,7 @@ func (t *NullTimestamp) UnmarshalJSON(b []byte) error {
 }
 
 func (t *NullTimestamp) Scan(value interface{}) error {
-	t.Timestamp, t.Valid = value.(strfmt.DateTime)
+	t.Valid = t.Timestamp.Scan(value) == nil
 	return nil
 }
 

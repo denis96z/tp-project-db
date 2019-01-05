@@ -95,21 +95,22 @@ const (
         VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING
         RETURNING "id";
     `
-	SelectThreadAttributes = `
-        SELECT th."id",th."slug",th."title",
-               th."forum",th."author",th."created_timestamp",
-               th."message",th."num_votes"
+	ThreadAttributes = `
+        th."id",th."slug",th."title", th."forum",th."author",
+        th."created_timestamp", th."message",th."num_votes"
     `
-	SelectThreadQueryBase = SelectThreadAttributes + `
+	SelectThreadByIDQuery = `
+        SELECT ` + ThreadAttributes + `
         FROM "thread" th
-    `
-	SelectThreadByIDQuery = SelectThreadQueryBase + `
         WHERE th."id" = $1;
     `
-	SelectThreadBySlugQuery = SelectThreadQueryBase + `
+	SelectThreadBySlugQuery = `
+        SELECT ` + ThreadAttributes + `
+        FROM "thread" th
         WHERE th."slug" = $1;
     `
-	SelectThreadsByForumQuery = SelectThreadAttributes + `
+	SelectThreadsByForumQuery = `
+        SELECT ` + ThreadAttributes + `
         FROM perform_select_threads_by_forum_query($1,$2,$3,$4) th;
     `
 )
@@ -230,6 +231,7 @@ func (r *ThreadRepository) FindThreadsByForum(args *ForumThreadsSearchArgs) (*mo
 		if err != nil {
 			panic(err)
 		}
+		threads = append(threads, thread)
 	}
 
 	if len(threads) == 0 {
