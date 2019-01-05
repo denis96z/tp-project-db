@@ -1,10 +1,12 @@
 package services
 
 import (
+	"github.com/go-openapi/strfmt"
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"strconv"
 	"tp-project-db/models"
+	"tp-project-db/repositories"
 )
 
 func (srv *Server) createThread(ctx *fasthttp.RequestCtx) {
@@ -55,4 +57,27 @@ func (srv *Server) findThreadBySlugOrID(ctx *fasthttp.RequestCtx) {
 	}
 
 	srv.WriteJSON(ctx, http.StatusOK, &thread)
+}
+
+func (srv *Server) findThreadsByForum(ctx *fasthttp.RequestCtx) {
+	var since strfmt.DateTime
+	err := srv.readSince(ctx, &since)
+	if err != nil {
+		srv.WriteError(ctx, srv.invalidFormatErr)
+		return
+	}
+
+	args := repositories.ForumThreadsSearchArgs{
+		Forum: srv.readSlug(ctx),
+		Since: since,
+		Desc:  srv.readDescFlag(ctx),
+		Limit: srv.readLimit(ctx),
+	}
+	threads, searchErr := srv.components.ThreadRepository.FindThreadsByForum(&args)
+	if searchErr != nil {
+		srv.WriteError(ctx, searchErr)
+		return
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, threads)
 }

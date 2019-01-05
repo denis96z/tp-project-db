@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/go-openapi/strfmt"
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
 	"tp-project-db/errs"
@@ -32,13 +33,29 @@ func (srv *Server) WriteError(ctx *fasthttp.RequestCtx, err *errs.Error) {
 }
 
 func (srv *Server) readNickname(ctx *fasthttp.RequestCtx) string {
-	return ctx.UserValue("nickname").(string)
+	return srv.readPathParam(ctx, "nickname")
 }
 
 func (srv *Server) readSlug(ctx *fasthttp.RequestCtx) string {
-	return ctx.UserValue("slug").(string)
+	return srv.readPathParam(ctx, "slug")
 }
 
 func (srv *Server) readSlugOrID(ctx *fasthttp.RequestCtx) string {
-	return ctx.UserValue("slug_or_id").(string)
+	return srv.readPathParam(ctx, "slug_or_id")
+}
+
+func (srv *Server) readDescFlag(ctx *fasthttp.RequestCtx) bool {
+	return ctx.QueryArgs().GetBool("desc")
+}
+
+func (srv *Server) readSince(ctx *fasthttp.RequestCtx, since *strfmt.DateTime) error {
+	return since.UnmarshalText(ctx.QueryArgs().Peek("since"))
+}
+
+func (srv *Server) readLimit(ctx *fasthttp.RequestCtx) int {
+	return ctx.QueryArgs().GetUintOrZero("limit")
+}
+
+func (srv *Server) readPathParam(ctx *fasthttp.RequestCtx, name string) string {
+	return ctx.UserValue(name).(string)
 }
