@@ -1,17 +1,18 @@
 package repositories
 
 import (
+	"database/sql/driver"
 	"github.com/jackc/pgx"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
 
 const (
-	PostNotFoundErrMessage           = "post not found"
-	PostAuthorNotFoundErrMessage     = "post author not found"
-	PostForumNotFoundErrMessage      = "post forum not found"
-	PostThreadNotFoundErrMessage     = "post thread not found"
-	PostAttributeDuplicateErrMessage = "post attribute duplicate"
+	PostNotFoundErrMessage       = "post not found"
+	PostAuthorNotFoundErrMessage = "post author not found"
+	PostForumNotFoundErrMessage  = "post forum not found"
+	PostThreadNotFoundErrMessage = "post thread not found"
+	PostParentNotFoundErrMessage = "post parent not found"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
                 CONSTRAINT "post_id_pk" PRIMARY KEY,
             "parent_id" BIGINT
                 DEFAULT(0)
-                CONSTRAINT "post_parent_id_not_null" NOT NULL
+                CONSTRAINT "post_parent_id_nullable" NULL
                 CONSTRAINT "post_parent_id_fk" REFERENCES "post"("id") ON DELETE CASCADE,
             "author" CITEXT
                 CONSTRAINT "post_author_not_null" NOT NULL
@@ -71,7 +72,7 @@ func NewPostRepository(conn *Connection) *PostRepository {
 	return &PostRepository{
 		conn:              conn,
 		notFoundErr:       errs.NewNotFoundError(PostNotFoundErrMessage),
-		conflictErr:       errs.NewConflictError(PostAttributeDuplicateErrMessage),
+		conflictErr:       errs.NewConflictError(PostParentNotFoundErrMessage),
 		authorNotFoundErr: errs.NewNotFoundError(PostAuthorNotFoundErrMessage),
 		forumNotFoundErr:  errs.NewNotFoundError(PostForumNotFoundErrMessage),
 		threadNotFoundErr: errs.NewNotFoundError(PostThreadNotFoundErrMessage),
@@ -98,9 +99,17 @@ func (r *PostRepository) Init() error {
 
 func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
-		row := tx.QueryRow(SelectPostExistsByID)
-		if err := row.Scan(&post.ParentID); err != nil {
-			return r.conflictErr
+		if post.ParentID != 0 {
+			var parentIDExists bool
+			row := tx.QueryRow(SelectPostExistsByID, post.ParentID)
+			if err := row.Scan(&parentIDExists); err != nil || !parentIDExists {
+				return r.conflictErr
+			}
+		}
+
+		row := tx.QueryRow(SelectUserNicknameByNickname, post.Author)
+		if err := row.Scan(&post.Author); err != nil {
+			return r.authorNotFoundErr
 		}
 
 		row = tx.QueryRow(SelectThreadForumByID, post.Thread)
@@ -108,9 +117,17 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 			return r.threadNotFoundErr
 		}
 
+		var parentID driver.Value
+		if post.ParentID > 0 {
+			parentID = post.ParentID
+		} else {
+			parentID = nil
+		}
+
 		tStp, _ := post.CreatedTimestamp.Value()
-		row = tx.QueryRow(InsertThread,
-			post.ParentID, post.Author, post.Forum,
+
+		row = tx.QueryRow(InsertPost,
+			parentID, post.Author, post.Forum,
 			post.Thread, post.Message, tStp,
 		)
 		if err := row.Scan(&post.ID); err != nil {

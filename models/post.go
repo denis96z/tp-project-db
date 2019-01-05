@@ -41,3 +41,6 @@ func (v *PostValidator) Validate(post *Post) *errs.Error {
 	}
 	return nil
 }
+
+//easyjson:json
+type Posts []Post

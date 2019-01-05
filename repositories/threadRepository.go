@@ -101,10 +101,10 @@ const (
         th."created_timestamp", th."message",th."num_votes"
     `
 	SelectThreadIDBySlugQuery = `
-        SELECT th."id" FROM "thread" th WHERE th."id" = $1;
+        SELECT th."id" FROM "thread" th WHERE th."slug" = $1;
     `
 	SelectThreadForumByIDQuery = `
-        SELECT th."forum" FROM "thread" th WHERE th."id" = $1);
+        SELECT th."forum" FROM "thread" th WHERE th."id" = $1;
     `
 	SelectThreadByIDQuery = `
         SELECT ` + ThreadAttributes + `

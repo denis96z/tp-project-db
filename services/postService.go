@@ -1,39 +1,52 @@
 package services
 
 import (
+	"github.com/go-openapi/strfmt"
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"strconv"
+	"time"
 	"tp-project-db/models"
 )
 
 func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
-	var post models.Post
-	if err := srv.ReadBody(ctx, &post); err != nil {
-		srv.WriteError(ctx, srv.invalidFormatErr)
-		return
-	}
+	var threadID int32
+	threadSlug := srv.readSlugOrID(ctx)
 
-	slug := srv.readSlugOrID(ctx)
-	id, err := strconv.ParseInt(slug, 10, 32)
-	if err == nil {
-		post.Thread = int32(id)
+	if id, err := strconv.ParseInt(threadSlug, 10, 32); err == nil {
+		threadID = int32(id)
 	} else {
-		if err := srv.components.ThreadRepository.FindThreadIDBySlug(&post.Thread, slug); err != nil {
+		if err := srv.components.ThreadRepository.FindThreadIDBySlug(&threadID, threadSlug); err != nil {
 			srv.WriteError(ctx, err)
 			return
 		}
 	}
 
-	if err := srv.components.PostValidator.Validate(&post); err != nil {
-		srv.WriteError(ctx, err)
+	var posts models.Posts
+	if err := srv.ReadBody(ctx, &posts); err != nil {
+		srv.WriteError(ctx, srv.invalidFormatErr)
 		return
 	}
 
-	if err := srv.components.PostRepository.CreatePost(&post); err != nil {
-		srv.WriteError(ctx, err)
-		return
+	currentTimestamp := models.NullTimestamp{
+		Valid:     true,
+		Timestamp: strfmt.DateTime(time.Now()),
 	}
 
-	srv.WriteJSON(ctx, http.StatusCreated, &post)
+	for i := 0; i < len(posts); i++ {
+		posts[i].Thread = threadID
+		posts[i].CreatedTimestamp = currentTimestamp
+
+		if err := srv.components.PostValidator.Validate(&posts[i]); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+
+		if err := srv.components.PostRepository.CreatePost(&posts[i]); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	}
+
+	srv.WriteJSON(ctx, http.StatusCreated, &posts)
 }
