@@ -34,6 +34,9 @@ func main() {
 	postRepository := repositories.NewPostRepository(conn)
 	handleErr(postRepository.Init())
 
+	voteRepository := repositories.NewVoteRepository(conn)
+	handleErr(voteRepository.Init())
+
 	srv := services.NewServer(
 		services.ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),
@@ -53,6 +56,9 @@ func main() {
 
 			PostValidator:  models.NewPostValidator(),
 			PostRepository: postRepository,
+
+			VoteValidator:  models.NewVoteValidator(),
+			VoteRepository: voteRepository,
 		},
 	)
 

@@ -37,7 +37,7 @@ func easyjsonE3ecfa40DecodeTpProjectDbModels(in *jlexer.Lexer, out *Vote) {
 		}
 		switch key {
 		case "nickname":
-			out.User = string(in.String())
+			out.Author = string(in.String())
 		case "voice":
 			out.Voice = int32(in.Int32())
 		default:
@@ -62,7 +62,7 @@ func easyjsonE3ecfa40EncodeTpProjectDbModels(out *jwriter.Writer, in Vote) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.User))
+		out.String(string(in.Author))
 	}
 	{
 		const prefix string = ",\"voice\":"

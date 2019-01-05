@@ -9,8 +9,8 @@ import (
 
 //easyjson:json
 type Vote struct {
-	User   string `json:"nickname"`
-	Thread string `json:"-"`
+	Author string `json:"nickname"`
+	Thread int32  `json:"-"`
 	Voice  int32  `json:"voice"`
 }
 
@@ -25,7 +25,7 @@ func NewVoteValidator() *VoteValidator {
 }
 
 func (v *VoteValidator) Validate(vote *Vote) *errs.Error {
-	if vote.User == consts.EmptyString {
+	if vote.Author == consts.EmptyString {
 		return v.err
 	}
 	if vote.Voice != -1 && vote.Voice != 1 {
