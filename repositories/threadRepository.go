@@ -90,6 +90,8 @@ const (
 	SelectThreadByID      = "select_thread_by_id"
 	SelectThreadBySlug    = "select_thread_by_slug"
 	SelectThreadsByForum  = "select_threads_by_forum"
+	UpdateThreadByID      = "update_thread_by_id"
+	UpdateThreadBySlug    = "update_thread_by_slug"
 
 	InsertThreadQuery = `
         INSERT INTO "thread"("slug","title","forum","author","created_timestamp","message")
@@ -119,6 +121,28 @@ const (
 	SelectThreadsByForumQuery = `
         SELECT ` + ThreadAttributes + `
         FROM perform_select_threads_by_forum_query($1,$2,$3,$4) th;
+    `
+	UpdateThreadByIDQuery = `
+        UPDATE "thread" SET
+            ("title","message") = (
+                update_value("title",$2),
+                update_value("message",$3)
+            )
+        WHERE "id" = $1
+        RETURNING
+            "id","slug","title","forum","author",
+            "created_timestamp","message","num_votes";
+    `
+	UpdateThreadBySlugQuery = `
+        UPDATE "thread" SET
+            ("title","message") = (
+                update_value("title",$2),
+                update_value("message",$3)
+            )
+        WHERE "slug" = $1
+        RETURNING
+            "id","slug","title","forum","author",
+            "created_timestamp","message","num_votes";
     `
 )
 
@@ -167,6 +191,14 @@ func (r *ThreadRepository) Init() error {
 		return err
 	}
 	err = r.conn.prepareStmt(SelectThreadsByForum, SelectThreadsByForumQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(UpdateThreadByID, UpdateThreadByIDQuery)
+	if err != nil {
+		return err
+	}
+	err = r.conn.prepareStmt(UpdateThreadBySlug, UpdateThreadBySlugQuery)
 	if err != nil {
 		return err
 	}
@@ -260,6 +292,31 @@ func (r *ThreadRepository) FindThreadsByForum(args *ForumThreadsSearchArgs) (*mo
 	}
 
 	return (*models.Threads)(&threads), nil
+}
+
+func (r *ThreadRepository) UpdateThreadByID(thread *models.Thread) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(UpdateThreadByID,
+			thread.ID, thread.Title, thread.Message,
+		)
+		if err := r.scanThread(row.Scan, thread); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
+}
+
+func (r *ThreadRepository) UpdateThreadBySlug(thread *models.Thread) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		slug, _ := thread.Slug.Value()
+		row := tx.QueryRow(UpdateThreadBySlug,
+			slug, thread.Title, thread.Message,
+		)
+		if err := r.scanThread(row.Scan, thread); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
 }
 
 type ScanFunc func(...interface{}) error

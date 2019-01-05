@@ -81,3 +81,42 @@ func (srv *Server) findThreadsByForum(ctx *fasthttp.RequestCtx) {
 
 	srv.WriteJSON(ctx, http.StatusOK, threads)
 }
+
+func (srv *Server) updateThread(ctx *fasthttp.RequestCtx) {
+	var threadUpdate models.ThreadUpdate
+	if err := srv.ReadBody(ctx, &threadUpdate); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	if err := srv.components.ThreadUpdateValidator.Validate(&threadUpdate); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	thread := models.Thread{
+		Title:   threadUpdate.Title,
+		Message: threadUpdate.Message,
+	}
+
+	slug := srv.readSlugOrID(ctx)
+	id, err := strconv.ParseInt(slug, 10, 32)
+	if err == nil {
+		thread.ID = int32(id)
+		if err := srv.components.ThreadRepository.UpdateThreadByID(&thread); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	} else {
+		thread.Slug = models.NullString{
+			Valid:  true,
+			String: slug,
+		}
+		if err := srv.components.ThreadRepository.UpdateThreadBySlug(&thread); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, &thread)
+}

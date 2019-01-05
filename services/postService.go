@@ -33,7 +33,13 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 		Timestamp: strfmt.DateTime(time.Now()),
 	}
 
-	for i := 0; i < len(posts); i++ {
+	n := len(posts)
+	if n == 0 {
+		srv.WriteJSON(ctx, http.StatusNotFound, srv.invalidFormatErr)
+		return
+	}
+
+	for i := 0; i < n; i++ {
 		posts[i].Thread = threadID
 		posts[i].CreatedTimestamp = currentTimestamp
 

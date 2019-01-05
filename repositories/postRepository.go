@@ -43,8 +43,8 @@ const (
         );
     `
 
-	InsertPost           = "insert_post"
-	SelectPostExistsByID = "select_post_exists_by_id"
+	InsertPost                    = "insert_post"
+	SelectPostExistsByIDAndThread = "select_post_exists_by_id_and_thread"
 
 	InsertPostQuery = `
         INSERT INTO "post"(
@@ -54,8 +54,8 @@ const (
         VALUES($1,$2,$3,$4,$5,$6)
         RETURNING "id";
     `
-	SelectPostExistsByIDQuery = `
-        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1);
+	SelectPostExistsByIDAndThreadQuery = `
+        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1 AND p."thread" = $2);
     `
 )
 
@@ -89,7 +89,7 @@ func (r *PostRepository) Init() error {
 	if err != nil {
 		return err
 	}
-	err = r.conn.prepareStmt(SelectPostExistsByID, SelectPostExistsByIDQuery)
+	err = r.conn.prepareStmt(SelectPostExistsByIDAndThread, SelectPostExistsByIDAndThreadQuery)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
 		if post.ParentID != 0 {
 			var parentIDExists bool
-			row := tx.QueryRow(SelectPostExistsByID, post.ParentID)
+			row := tx.QueryRow(SelectPostExistsByIDAndThread, post.ParentID, post.Thread)
 			if err := row.Scan(&parentIDExists); err != nil || !parentIDExists {
 				return r.conflictErr
 			}
