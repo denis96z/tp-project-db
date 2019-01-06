@@ -277,7 +277,7 @@ func (r *PostRepository) FindFullPost(post *models.PostFull) *errs.Error {
 type PostsByThreadSearchArgs struct {
 	ThreadID   sql.NullInt64
 	ThreadSlug string
-	Since      models.NullTimestamp
+	Since      int
 	SortType   string
 	Desc       bool
 	Limit      int
@@ -297,9 +297,9 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		qArgs = append(qArgs, &args.ThreadID.Int64)
 	}
 
-	if args.Since.Valid {
+	if args.Since > 0 {
 		qArgsIndex++
-		qArgs = append(qArgs, &args.Since.Timestamp)
+		qArgs = append(qArgs, &args.Since)
 
 		var eqOp string
 		if args.Desc {
@@ -308,7 +308,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 			eqOp = ">"
 		}
 
-		query += fmt.Sprintf(` AND p."created_timestamp" %s $%d`, eqOp, qArgsIndex)
+		query += fmt.Sprintf(` AND p."id" %s $%d`, eqOp, qArgsIndex)
 	}
 
 	switch args.SortType {

@@ -101,14 +101,14 @@ func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
 func (srv *Server) findPostsByThread(ctx *fasthttp.RequestCtx) {
 	slugOrID := srv.readSlugOrID(ctx)
 
-	var since models.NullTimestamp
-	if err := srv.readSinceTimestamp(ctx, &since.Timestamp); err != nil {
-		since.Valid = false
-	}
-
 	sortType := string(ctx.QueryArgs().Peek("sort"))
 	if sortType == consts.EmptyString {
 		sortType = "flat"
+	}
+
+	since, parErr := ctx.QueryArgs().GetUint("since")
+	if parErr != nil {
+		since = 0
 	}
 
 	searchArgs := repositories.PostsByThreadSearchArgs{
