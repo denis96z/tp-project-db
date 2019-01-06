@@ -41,7 +41,8 @@ const (
                 CONSTRAINT "post_created_timestamp_nullable" NULL,
             "is_edited" BOOLEAN
                 DEFAULT(FALSE)
-                CONSTRAINT "post_is_edited_not_null" NOT NULL
+                CONSTRAINT "post_is_edited_not_null" NOT NULL,
+            "path" BIGINT ARRAY
         );
 
         CREATE OR REPLACE FUNCTION post_insert_trigger_func()
@@ -108,10 +109,18 @@ func (r *PostRepository) Init() error {
 	err = r.conn.prepareStmt(InsertPost, `
         INSERT INTO "post"(
             "parent_id","author","forum","thread",
-            "message","created_timestamp"
-        )
-        VALUES($1,$2,$3,$4,$5,$6)
-        RETURNING "id";
+            "message","created_timestamp","path"
+        ) VALUES($1,$2,$3,$4,$5,$6,(
+            SELECT
+                CASE
+                    WHEN $1::BIGINT IS NULL THEN '{}'
+                    ELSE (
+                        SELECT array_append(p."path", $1::BIGINT)
+                        FROM "post" p
+                        WHERE p."id" = $1::BIGINT
+                    )
+                END
+        )) RETURNING "id";
     `)
 	if err != nil {
 		return err
@@ -262,6 +271,19 @@ func (r *PostRepository) FindFullPost(post *models.PostFull) *errs.Error {
 		p.ParentID = 0
 	}
 	return nil
+}
+
+type PostsByThreadSearchArgs struct {
+	ThreadID   sql.NullInt64
+	ThreadSlug sql.NullString
+	Since      models.NullTimestamp
+	SortType   string
+	Desc       bool
+	Limit      int
+}
+
+func (r *PostRepository) FindPostsByThreadID(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
+	return nil, nil //TODO
 }
 
 func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
