@@ -15,11 +15,11 @@ const (
 const (
 	CreateForumTableQuery = `
 	    CREATE TABLE IF NOT EXISTS "forum" (
-            "slug" CITEXT
+            "slug" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "forum_slug_pk" PRIMARY KEY,
             "title" TEXT
                 CONSTRAINT "forum_title_not_null" NOT NULL,
-            "admin" CITEXT
+            "admin" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "forum_admin_not_null" NOT NULL
                 CONSTRAINT "forum_admin_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
             "num_threads" INTEGER
@@ -35,10 +35,10 @@ const (
         CREATE TABLE IF NOT EXISTS "forum_user" (
             "id" BIGSERIAL
                 CONSTRAINT "forum_user_id_pk" PRIMARY KEY,
-            "user" CITEXT
+            "user" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "forum_user_user_not_null" NOT NULL
                 CONSTRAINT "forum_user_user_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
-            "forum" CITEXT
+            "forum" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "forum_user_forum_not_null" NOT NULL
                 CONSTRAINT "forum_user_forum_fk" REFERENCES "forum"("slug") ON DELETE CASCADE,
             CONSTRAINT "forum_user_user_forum_unique" UNIQUE("user","forum")

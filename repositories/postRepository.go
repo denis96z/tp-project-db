@@ -24,10 +24,10 @@ const (
                 DEFAULT(0)
                 CONSTRAINT "post_parent_id_nullable" NULL
                 CONSTRAINT "post_parent_id_fk" REFERENCES "post"("id") ON DELETE CASCADE,
-            "author" CITEXT
+            "author" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "post_author_not_null" NOT NULL
                 CONSTRAINT "post_author_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
-            "forum" CITEXT
+            "forum" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "post_forum_not_null" NOT NULL
                 CONSTRAINT "post_forum_fk" REFERENCES "forum"("slug") ON DELETE CASCADE,
             "thread" INTEGER

@@ -16,7 +16,7 @@ const (
 	    CREATE TABLE IF NOT EXISTS "vote" (
             "id" BIGSERIAL
                 CONSTRAINT "vote_id_pk" PRIMARY KEY,
-            "author" CITEXT
+            "author" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "vote_author_not_null" NOT NULL
                 CONSTRAINT "vote_author_fk" REFERENCES "user"("nickname"),
             "thread" INTEGER

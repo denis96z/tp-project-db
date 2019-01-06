@@ -19,15 +19,15 @@ const (
 	    CREATE TABLE IF NOT EXISTS "thread" (
             "id" SERIAL
                 CONSTRAINT "thread_id_pk" PRIMARY KEY,
-            "slug" CITEXT
+            "slug" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "thread_slug_nullable" NULL
                 CONSTRAINT "thread_slug_unique" UNIQUE,
             "title" TEXT
                 CONSTRAINT "thread_title_not_null" NOT NULL,
-            "forum" CITEXT
+            "forum" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "thread_forum_not_null" NOT NULL
                 CONSTRAINT "thread_forum_fk" REFERENCES "forum"("slug") ON DELETE CASCADE,
-            "author" CITEXT
+            "author" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "thread_author_not_null" NOT NULL
                 CONSTRAINT "thread_author_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
             "created_timestamp" TIMESTAMP WITH TIME ZONE

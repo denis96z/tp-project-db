@@ -21,7 +21,7 @@ const (
                 CONSTRAINT "user_nickname_pk" PRIMARY KEY,
             "fullname" TEXT
                 CONSTRAINT "user_fullname_not_null" NOT NULL,
-            "email" CITEXT
+            "email" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "user_email_not_null" NOT NULL
                 CONSTRAINT "user_email_unique" UNIQUE,
             "about" TEXT
