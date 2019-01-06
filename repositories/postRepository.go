@@ -74,19 +74,9 @@ const (
     `
 
 	InsertPost                    = "insert_post"
+	SelectPostByID                = "select_post_by_id"
 	SelectPostExistsByIDAndThread = "select_post_exists_by_id_and_thread"
-
-	InsertPostQuery = `
-        INSERT INTO "post"(
-            "parent_id","author","forum","thread",
-            "message","created_timestamp"
-        )
-        VALUES($1,$2,$3,$4,$5,$6)
-        RETURNING "id";
-    `
-	SelectPostExistsByIDAndThreadQuery = `
-        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1 AND p."thread" = $2);
-    `
+	UpdatePostByID                = "update_post_by_id"
 )
 
 type PostRepository struct {
@@ -115,11 +105,48 @@ func (r *PostRepository) Init() error {
 		return err
 	}
 
-	err = r.conn.prepareStmt(InsertPost, InsertPostQuery)
+	err = r.conn.prepareStmt(InsertPost, `
+        INSERT INTO "post"(
+            "parent_id","author","forum","thread",
+            "message","created_timestamp"
+        )
+        VALUES($1,$2,$3,$4,$5,$6)
+        RETURNING "id";
+    `)
 	if err != nil {
 		return err
 	}
-	err = r.conn.prepareStmt(SelectPostExistsByIDAndThread, SelectPostExistsByIDAndThreadQuery)
+
+	err = r.conn.prepareStmt(SelectPostByID, `
+        SELECT `+PostAttributes+`
+        FROM "post" p
+        WHERE p."id" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectPostExistsByIDAndThread, `
+        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1 AND p."thread" = $2);
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(UpdatePostByID, `
+        UPDATE "post" SET
+            "message" = $2,
+            "is_edited" =
+                CASE
+                    WHEN "message" != $2 THEN TRUE
+                    ELSE "is_edited"
+                END
+        WHERE "id" = $1
+        RETURNING
+            "id","parent_id","author",
+            "forum","thread","message",
+            "created_timestamp","is_edited";
+    `)
 	if err != nil {
 		return err
 	}
@@ -169,7 +196,15 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 	})
 }
 
-func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
+func (r *PostRepository) FindPost(post *models.Post) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectPostByID, &post.ID)
+	if err := r.scanPost(row.Scan, post); err != nil {
+		return r.notFoundErr
+	}
+	return nil
+}
+
+func (r *PostRepository) FindFullPost(post *models.PostFull) *errs.Error {
 	mapPtr := (*map[string]interface{})(post)
 
 	var fAttr, fJoin string
@@ -230,5 +265,30 @@ func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 }
 
 func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(UpdatePostByID, &post.ID, &post.Message)
+		if err := r.scanPost(row.Scan, post); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
+}
 
+func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
+	var pID sql.NullInt64
+	err := f(
+		&post.ID, &pID, &post.Author,
+		&post.Forum, &post.Thread, &post.Message,
+		&post.CreatedTimestamp, &post.IsEdited,
+	)
+	if err != nil {
+		return err
+	}
+
+	if pID.Valid {
+		post.ParentID = pID.Int64
+	} else {
+		post.ParentID = 0
+	}
+	return nil
 }

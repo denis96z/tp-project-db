@@ -53,12 +53,19 @@ type PostUpdate struct {
 	Message string `json:"message"`
 }
 
-type PostUpdateValidator struct{}
+type PostUpdateValidator struct {
+	err *errs.Error
+}
 
 func NewPostUpdateValidator() *PostUpdateValidator {
-	return &PostUpdateValidator{}
+	return &PostUpdateValidator{
+		err: errs.NewInvalidFormatError(ValidationErrMessage),
+	}
 }
 
 func (v *PostUpdateValidator) Validate(postUpdate *PostUpdate) *errs.Error {
+	if postUpdate.Message == consts.EmptyString {
+		return v.err
+	}
 	return nil
 }

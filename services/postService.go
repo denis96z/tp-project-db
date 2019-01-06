@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"tp-project-db/consts"
 	"tp-project-db/models"
 )
 
@@ -86,10 +87,41 @@ func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
 	}
 
 	postPtr := (*models.PostFull)(&postMap)
-	if err := srv.components.PostRepository.FindPostByID(postPtr); err != nil {
+	if err := srv.components.PostRepository.FindFullPost(postPtr); err != nil {
 		srv.WriteError(ctx, err)
 		return
 	}
 
 	srv.WriteJSON(ctx, http.StatusOK, postPtr)
+}
+
+func (srv *Server) updatePost(ctx *fasthttp.RequestCtx) {
+	id, err := srv.readID(ctx)
+	if err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+	post := models.Post{
+		ID: id,
+	}
+
+	var postUpdate models.PostUpdate
+	if err := srv.ReadBody(ctx, &postUpdate); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+	if postUpdate.Message == consts.EmptyString {
+		if err := srv.components.PostRepository.FindPost(&post); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	} else {
+		post.Message = postUpdate.Message
+		if err := srv.components.PostRepository.UpdatePost(&post); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, &post)
 }
