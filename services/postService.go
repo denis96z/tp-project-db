@@ -5,6 +5,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"tp-project-db/models"
 )
@@ -15,16 +16,15 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 
 	if id, err := strconv.ParseInt(threadSlug, 10, 32); err == nil {
 		threadID = int32(id)
+		if err := srv.components.ThreadRepository.CheckThreadExists(threadID); err != nil {
+			srv.WriteError(ctx, err)
+			return
+		}
 	} else {
 		if err := srv.components.ThreadRepository.FindThreadIDBySlug(&threadID, threadSlug); err != nil {
 			srv.WriteError(ctx, err)
 			return
 		}
-	}
-
-	if err := srv.components.ThreadRepository.CheckThreadExists(threadID); err != nil {
-		srv.WriteError(ctx, err)
-		return
 	}
 
 	var posts models.Posts
@@ -70,7 +70,7 @@ func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
 	}
 	postMap["post"] = &post
 
-	attrs := ctx.QueryArgs().PeekMulti("related")
+	attrs := strings.Split(string(ctx.QueryArgs().Peek("related")), ",")
 	for _, attr := range attrs {
 		switch string(attr) {
 		case "forum":
@@ -79,9 +79,9 @@ func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
 		case "thread":
 			var thread models.Thread
 			postMap["thread"] = &thread
-		case "author":
+		case "user":
 			var user models.User
-			postMap["user"] = &user
+			postMap["author"] = &user
 		}
 	}
 

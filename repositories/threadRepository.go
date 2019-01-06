@@ -228,7 +228,7 @@ func (r *ThreadRepository) CreateThread(thread *models.Thread) *errs.Error {
 func (r *ThreadRepository) CheckThreadExists(id int32) *errs.Error {
 	var res bool
 	row := r.conn.conn.QueryRow(SelectThreadExistsByID, id)
-	if err := row.Scan(&res); err != nil {
+	if err := row.Scan(&res); err != nil || !res {
 		return r.notFoundErr
 	}
 	return nil

@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"github.com/jackc/pgx"
@@ -176,8 +177,9 @@ func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 	var uAttr, uJoin string
 
 	p, _ := (*mapPtr)["post"].(*models.Post)
+	var pID sql.NullInt64
 	dest := []interface{}{
-		&p.ID, &p.ParentID, &p.Author,
+		&p.ID, &pID, &p.Author,
 		&p.Forum, &p.Thread, &p.Message,
 		&p.CreatedTimestamp, &p.IsEdited,
 	}
@@ -201,7 +203,7 @@ func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 			&th.CreatedTimestamp, &th.Message, &th.NumVotes,
 		)
 	}
-	if uItf, ok := (*mapPtr)["user"]; ok {
+	if uItf, ok := (*mapPtr)["author"]; ok {
 		uAttr = `,` + UserAttributes
 		uJoin = ` JOIN "user" u ON u."nickname" = p."author"`
 
@@ -219,13 +221,10 @@ func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 		return r.notFoundErr
 	}
 
+	if pID.Valid {
+		p.ParentID = pID.Int64
+	} else {
+		p.ParentID = 0
+	}
 	return nil
-}
-
-func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
-	return f(
-		&post.ID, &post.ParentID, &post.Author,
-		&post.Forum, &post.Thread, &post.Message,
-		&post.CreatedTimestamp, &post.IsEdited,
-	)
 }

@@ -41,18 +41,17 @@ func (r *StatusRepository) GetStatus(status *models.Status) *errs.Error {
 }
 
 func (r *StatusRepository) Init() error {
-	err := r.conn.prepareStmt(SelectStatus, `
-        SELECT COUNT(*) FROM "user"
-        UNION
-        SELECT COUNT(*) FROM "forum"
-        UNION
-        SELECT COUNT(*) FROM "thread"
-        UNION
-        SELECT COUNT(*) FROM "post";
-    `)
-	if err != nil {
-		return err
-	}
+	/*err := r.conn.prepareStmt(SelectStatus, `
+	        SELECT (COUNT(*) FROM "user",
+	        SELECT COUNT(*) FROM "forum"
+	        UNION
+	        SELECT COUNT(*) FROM "thread"
+	        UNION
+	        SELECT COUNT(*) FROM "post";
+	    `)
+		if err != nil {
+			return err
+		}*/
 
 	return nil
 }

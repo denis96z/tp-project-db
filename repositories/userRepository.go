@@ -3,7 +3,6 @@ package repositories
 import (
 	"fmt"
 	"github.com/jackc/pgx"
-	"log"
 	"tp-project-db/consts"
 	"tp-project-db/errs"
 	"tp-project-db/models"
@@ -204,8 +203,6 @@ func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models
 		query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
 	}
 	query += `;`
-
-	log.Println(query, qArgs)
 
 	rows, err := r.conn.conn.Query(query, qArgs...)
 	if err != nil {
