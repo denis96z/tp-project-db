@@ -31,6 +31,38 @@ const (
         );
 
 		CREATE INDEX IF NOT EXISTS "forum_admin_idx" ON "forum"("admin");
+
+        CREATE TABLE IF NOT EXISTS "forum_user" (
+            "id" BIGSERIAL
+                CONSTRAINT "forum_user_id_pk" PRIMARY KEY,
+            "user" CITEXT
+                CONSTRAINT "forum_user_user_not_null" NOT NULL
+                CONSTRAINT "forum_user_user_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
+            "forum" CITEXT
+                CONSTRAINT "forum_user_forum_not_null" NOT NULL
+                CONSTRAINT "forum_user_forum_fk" REFERENCES "forum"("slug") ON DELETE CASCADE,
+            CONSTRAINT "forum_user_user_forum_unique" UNIQUE("user","forum")
+        );
+
+        CREATE INDEX IF NOT EXISTS "forum_user_user_idx" ON "forum_user"("user");
+        CREATE INDEX IF NOT EXISTS "forum_user_forum_idx" ON "forum_user"("forum");
+
+        CREATE OR REPLACE FUNCTION forum_insert_trigger_func()
+        RETURNS TRIGGER AS
+        $$
+        BEGIN
+            --INSERT INTO "forum_user"("user","forum")
+            --VALUES(NEW."admin",NEW."slug") ON CONFLICT DO NOTHING;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE PLPGSQL;
+
+        DROP TRIGGER IF EXISTS "forum_insert_trigger" ON "forum";
+
+        CREATE TRIGGER "forum_insert_trigger"
+        AFTER INSERT ON "forum"
+        FOR EACH ROW
+        EXECUTE PROCEDURE forum_insert_trigger_func();
     `
 
 	InsertForum             = "insert_forum"

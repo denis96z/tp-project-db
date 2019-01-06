@@ -49,6 +49,10 @@ const (
             UPDATE "forum" SET
                 "num_posts" = "num_posts" + 1
             WHERE "slug" = NEW."forum";
+
+            INSERT INTO "forum_user"("user","forum")
+            VALUES(NEW."author",NEW."forum") ON CONFLICT DO NOTHING;
+
             RETURN NEW;
         END;
         $$ LANGUAGE PLPGSQL;

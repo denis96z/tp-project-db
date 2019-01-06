@@ -17,7 +17,7 @@ const (
 const (
 	CreateUserTableQuery = `
 	    CREATE TABLE IF NOT EXISTS "user" (
-            "nickname" CITEXT
+            "nickname" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "user_nickname_pk" PRIMARY KEY,
             "fullname" TEXT
                 CONSTRAINT "user_fullname_not_null" NOT NULL,
@@ -173,19 +173,8 @@ func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models
 	query := `
         SELECT ` + UserAttributes + `
         FROM "user" u
-        JOIN (
-            SELECT f."admin" AS "nickname"
-            FROM "forum" f
-            WHERE f."slug" = $1
-            UNION DISTINCT
-            SELECT th."author" AS "nickname"
-            FROM "thread" th
-            WHERE th."forum" = $1
-            UNION DISTINCT
-            SELECT p."author" AS "nickname"
-            FROM "post" p
-            WHERE p."forum" = $1
-        ) q ON q."nickname" = u."nickname"
+        JOIN "forum_user" fu ON u."nickname" = fu."user"
+        WHERE fu."forum" = $1
     `
 	qArgs := []interface{}{args.Forum}
 	qArgsIndex := 1
@@ -193,9 +182,17 @@ func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models
 	if args.Since != consts.EmptyString {
 		qArgs = append(qArgs, args.Since)
 		qArgsIndex++
-		query += fmt.Sprintf(`WHERE u."nickname" > $%d`, qArgsIndex)
+
+		var eqOp string
+		if args.Desc {
+			eqOp = "<"
+		} else {
+			eqOp = ">"
+		}
+
+		query += fmt.Sprintf(`AND u."nickname" %s $%d`, eqOp, qArgsIndex)
 	}
-	query += ` ORDER BY u."nickname" `
+	query += ` ORDER BY lower(u."nickname") `
 	if args.Desc {
 		query += `DESC`
 	} else {
