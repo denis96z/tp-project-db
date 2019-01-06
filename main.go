@@ -57,8 +57,9 @@ func main() {
 			ThreadUpdateValidator: models.NewThreadUpdateValidator(),
 			ThreadRepository:      threadRepository,
 
-			PostValidator:  models.NewPostValidator(),
-			PostRepository: postRepository,
+			PostValidator:       models.NewPostValidator(),
+			PostUpdateValidator: models.NewPostUpdateValidator(),
+			PostRepository:      postRepository,
 
 			VoteValidator:  models.NewVoteValidator(),
 			VoteRepository: voteRepository,

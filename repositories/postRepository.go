@@ -228,3 +228,7 @@ func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 	}
 	return nil
 }
+
+func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
+
+}

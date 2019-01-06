@@ -47,3 +47,18 @@ type Posts []Post
 
 //easyjson:json
 type PostFull map[string]interface{}
+
+//easyjson:json
+type PostUpdate struct {
+	Message string `json:"message"`
+}
+
+type PostUpdateValidator struct{}
+
+func NewPostUpdateValidator() *PostUpdateValidator {
+	return &PostUpdateValidator{}
+}
+
+func (v *PostUpdateValidator) Validate(postUpdate *PostUpdate) *errs.Error {
+	return nil
+}

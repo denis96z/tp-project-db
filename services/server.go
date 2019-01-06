@@ -29,8 +29,9 @@ type ServerComponents struct {
 	ThreadUpdateValidator *models.ThreadUpdateValidator
 	ThreadRepository      *repositories.ThreadRepository
 
-	PostValidator  *models.PostValidator
-	PostRepository *repositories.PostRepository
+	PostValidator       *models.PostValidator
+	PostUpdateValidator *models.PostUpdateValidator
+	PostRepository      *repositories.PostRepository
 
 	VoteValidator  *models.VoteValidator
 	VoteRepository *repositories.VoteRepository
