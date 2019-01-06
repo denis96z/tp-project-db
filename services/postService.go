@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"github.com/go-openapi/strfmt"
 	"github.com/valyala/fasthttp"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -124,8 +123,6 @@ func (srv *Server) findPostsByThread(ctx *fasthttp.RequestCtx) {
 			Valid: true, Int64: id,
 		}
 	}
-
-	log.Println(searchArgs)
 
 	posts, err := srv.components.PostRepository.FindPostsByThread(&searchArgs)
 	if err != nil {

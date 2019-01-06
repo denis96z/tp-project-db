@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"github.com/jackc/pgx"
-	"log"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -420,8 +419,6 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 	}
 	query += `;`
 
-	log.Println(query, qArgs)
-
 	rows, err := r.conn.conn.Query(query, qArgs...)
 	if err != nil {
 		panic(err)
@@ -435,6 +432,20 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 			panic(err)
 		}
 		posts = append(posts, post)
+	}
+
+	if len(posts) == 0 {
+		var exists bool
+		var row *pgx.Row
+
+		if args.ThreadID.Valid {
+			row = r.conn.conn.QueryRow(SelectThreadExistsByID, &args.ThreadID.Int64)
+		} else {
+			row = r.conn.conn.QueryRow(SelectThreadExistsBySlug, &args.ThreadSlug)
+		}
+		if err = row.Scan(&exists); !exists {
+			return nil, r.notFoundErr
+		}
 	}
 
 	return (*models.Posts)(&posts), nil
