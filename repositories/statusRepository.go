@@ -6,15 +6,6 @@ import (
 )
 
 const (
-	CreateStatusTableQuery = `
-        CREATE TABLE IF NOT EXISTS "status" (
-            "num_users" INTEGER DEFAULT(0),
-            "num_forums" INTEGER DEFAULT(0),
-            "num_threads" INTEGER DEFAULT(0),
-            "num_posts" BIGINT DEFAULT(0)
-        );
-    `
-
 	SelectStatus = "select_status"
 )
 
@@ -28,6 +19,21 @@ func NewStatusRepository(conn *Connection) *StatusRepository {
 	}
 }
 
+func (r *StatusRepository) Init() error {
+	err := r.conn.prepareStmt(SelectStatus, `
+        SELECT
+            (SELECT COUNT(*) FROM "user")::INTEGER AS "num_users",
+            (SELECT COUNT(*) FROM "forum")::INTEGER AS "num_forums",
+            (SELECT COUNT(*) FROM "thread")::INTEGER AS "num_thread",
+            (SELECT COUNT(*) FROM "post")::BIGINT AS "num_posts";
+	`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *StatusRepository) GetStatus(status *models.Status) *errs.Error {
 	row := r.conn.conn.QueryRow(SelectStatus)
 	err := row.Scan(
@@ -37,21 +43,5 @@ func (r *StatusRepository) GetStatus(status *models.Status) *errs.Error {
 	if err != nil {
 		panic(err)
 	}
-	return nil
-}
-
-func (r *StatusRepository) Init() error {
-	/*err := r.conn.prepareStmt(SelectStatus, `
-	        SELECT (COUNT(*) FROM "user",
-	        SELECT COUNT(*) FROM "forum"
-	        UNION
-	        SELECT COUNT(*) FROM "thread"
-	        UNION
-	        SELECT COUNT(*) FROM "post";
-	    `)
-		if err != nil {
-			return err
-		}*/
-
 	return nil
 }

@@ -69,7 +69,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
 	r.POST("/api/service/clear", srv.deleteAllUsers)
-	//r.GET("/api/service/status", srv.getStatus)
+	r.GET("/api/service/status", srv.getStatus)
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
