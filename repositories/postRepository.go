@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"github.com/jackc/pgx"
+	"log"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -275,7 +276,7 @@ func (r *PostRepository) FindFullPost(post *models.PostFull) *errs.Error {
 
 type PostsByThreadSearchArgs struct {
 	ThreadID   sql.NullInt64
-	ThreadSlug sql.NullString
+	ThreadSlug string
 	Since      models.NullTimestamp
 	SortType   string
 	Desc       bool
@@ -283,17 +284,52 @@ type PostsByThreadSearchArgs struct {
 }
 
 func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
-	query := `SELECT ` + ThreadAttributes + ` FROM "post" p `
+	query := `SELECT ` + PostAttributes + ` FROM "post" p `
+
 	qArgs := make([]interface{}, 0, 1)
+	qArgsIndex := 1
 
 	if !args.ThreadID.Valid {
-		query += `JOIN "thread" th ON th."id" = p."id" AND th."slug" = $1`
-		qArgs = append(qArgs, &args.ThreadSlug.String)
+		query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
+		qArgs = append(qArgs, &args.ThreadSlug)
 	} else {
 		query += `WHERE p."id" = $1`
 		qArgs = append(qArgs, &args.ThreadID.Int64)
 	}
+
+	if args.Since.Valid {
+		qArgsIndex++
+		qArgs = append(qArgs, &args.Since.Timestamp)
+
+		var eqOp string
+		if args.Desc {
+			eqOp = "<"
+		} else {
+			eqOp = ">"
+		}
+
+		query += fmt.Sprintf(` AND p."created_timestamp" %s $%d`, eqOp, qArgsIndex)
+	}
+
+	switch args.SortType {
+	case "flat":
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY p."created_timestamp" %s, p."id" ASC`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+	}
 	query += `;`
+
+	log.Println(query, qArgs)
 
 	rows, err := r.conn.conn.Query(query, qArgs...)
 	if err != nil {
@@ -307,7 +343,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		if err := r.scanPost(rows.Scan, &post); err != nil {
 			panic(err)
 		}
-		posts = append(posts)
+		posts = append(posts, post)
 	}
 
 	return (*models.Posts)(&posts), nil

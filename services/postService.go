@@ -1,14 +1,17 @@
 package services
 
 import (
+	"database/sql"
 	"github.com/go-openapi/strfmt"
 	"github.com/valyala/fasthttp"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 	"tp-project-db/consts"
 	"tp-project-db/models"
+	"tp-project-db/repositories"
 )
 
 func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
@@ -93,6 +96,44 @@ func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
 	}
 
 	srv.WriteJSON(ctx, http.StatusOK, postPtr)
+}
+
+func (srv *Server) findPostsByThread(ctx *fasthttp.RequestCtx) {
+	slugOrID := srv.readSlugOrID(ctx)
+
+	var since models.NullTimestamp
+	if err := srv.readSinceTimestamp(ctx, &since.Timestamp); err != nil {
+		since.Valid = false
+	}
+
+	sortType := string(ctx.QueryArgs().Peek("sort"))
+	if sortType == consts.EmptyString {
+		sortType = "flat"
+	}
+
+	searchArgs := repositories.PostsByThreadSearchArgs{
+		ThreadSlug: slugOrID,
+		Since:      since,
+		Limit:      srv.readLimit(ctx),
+		Desc:       srv.readDescFlag(ctx),
+		SortType:   sortType,
+	}
+
+	if id, err := strconv.ParseInt(slugOrID, 10, 32); err == nil {
+		searchArgs.ThreadID = sql.NullInt64{
+			Valid: true, Int64: id,
+		}
+	}
+
+	log.Println(searchArgs)
+
+	posts, err := srv.components.PostRepository.FindPostsByThread(&searchArgs)
+	if err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, posts)
 }
 
 func (srv *Server) updatePost(ctx *fasthttp.RequestCtx) {
