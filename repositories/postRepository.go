@@ -293,16 +293,16 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 	qArgs := make([]interface{}, 0, 1)
 	qArgsIndex := 1
 
-	if !args.ThreadID.Valid {
-		query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
-		qArgs = append(qArgs, &args.ThreadSlug)
-	} else {
-		query += `WHERE p."id" = $1`
-		qArgs = append(qArgs, &args.ThreadID.Int64)
-	}
-
 	switch args.SortType {
 	case "flat":
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE p."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
 		if args.Since > 0 {
 			qArgsIndex++
 			qArgs = append(qArgs, &args.Since)
@@ -332,6 +332,14 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		}
 
 	case "tree":
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE p."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
 		if args.Since > 0 {
 			qArgsIndex++
 			qArgs = append(qArgs, &args.Since)
@@ -358,6 +366,56 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 			qArgsIndex++
 			qArgs = append(qArgs, &args.Limit)
 			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+	case "parent_tree":
+		query += `WHERE p."path"[1] IN (
+            SELECT r."id" FROM "post" r
+        `
+
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = r."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE r."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
+		query += ` AND r."parent_id" IS NULL`
+
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND r."id" %s (SELECT f."path"[1] FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
+		}
+
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY r."id" %s`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+		query += `)`
+		if args.Desc {
+			query += ` ORDER BY p."path"[1] DESC, p."path"[2:]`
+		} else {
+			query += ` ORDER BY p."path"`
 		}
 	}
 	query += `;`
