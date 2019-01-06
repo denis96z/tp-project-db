@@ -114,9 +114,13 @@ func (r *PostRepository) Init() error {
         ) VALUES($1,$2,$3,$4,$5,$6,(
             SELECT
                 CASE
-                    WHEN $1::BIGINT IS NULL THEN '{}'
+                    WHEN $1::BIGINT IS NULL THEN array_append('{}', (
+                        SELECT last_value FROM "post_id_seq"
+                    ))
                     ELSE (
-                        SELECT array_append(p."path", $1::BIGINT)
+                        SELECT array_append(p."path", (
+                            SELECT last_value FROM "post_id_seq"
+                        ))
                         FROM "post" p
                         WHERE p."id" = $1::BIGINT
                     )
@@ -297,29 +301,58 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		qArgs = append(qArgs, &args.ThreadID.Int64)
 	}
 
-	if args.Since > 0 {
-		qArgsIndex++
-		qArgs = append(qArgs, &args.Since)
-
-		var eqOp string
-		if args.Desc {
-			eqOp = "<"
-		} else {
-			eqOp = ">"
-		}
-
-		query += fmt.Sprintf(` AND p."id" %s $%d`, eqOp, qArgsIndex)
-	}
-
 	switch args.SortType {
 	case "flat":
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND p."id" %s $%d`, eqOp, qArgsIndex)
+		}
+
 		var sortOrd string
 		if args.Desc {
 			sortOrd = `DESC`
 		} else {
 			sortOrd = `ASC`
 		}
-		query += fmt.Sprintf(` ORDER BY p."created_timestamp" %s, p."id" ASC`, sortOrd)
+		query += fmt.Sprintf(` ORDER BY p."id" %s`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+	case "tree":
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND p."path" %s (SELECT f."path" FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
+		}
+
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY p."path" %s`, sortOrd)
 
 		if args.Limit > 0 {
 			qArgsIndex++
