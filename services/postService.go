@@ -55,3 +55,41 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 
 	srv.WriteJSON(ctx, http.StatusCreated, &posts)
 }
+
+func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
+	id, err := srv.readID(ctx)
+	if err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	postMap := make(map[string]interface{}, 0)
+
+	post := models.Post{
+		ID: id,
+	}
+	postMap["post"] = &post
+
+	attrs := ctx.QueryArgs().PeekMulti("related")
+	for _, attr := range attrs {
+		switch string(attr) {
+		case "forum":
+			var forum models.Forum
+			postMap["forum"] = &forum
+		case "thread":
+			var thread models.Thread
+			postMap["thread"] = &thread
+		case "author":
+			var user models.User
+			postMap["user"] = &user
+		}
+	}
+
+	postPtr := (*models.PostFull)(&postMap)
+	if err := srv.components.PostRepository.FindPostByID(postPtr); err != nil {
+		srv.WriteError(ctx, err)
+		return
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, postPtr)
+}

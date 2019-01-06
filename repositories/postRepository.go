@@ -168,7 +168,7 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 	})
 }
 
-func (r *PostRepository) FindPostByID(id int64, post *models.PostFull) *errs.Error {
+func (r *PostRepository) FindPostByID(post *models.PostFull) *errs.Error {
 	mapPtr := (*map[string]interface{})(post)
 
 	var fAttr, fJoin string
@@ -214,7 +214,7 @@ func (r *PostRepository) FindPostByID(id int64, post *models.PostFull) *errs.Err
 		PostAttributes, fAttr, thAttr, uAttr, fJoin, thJoin, uJoin,
 	)
 
-	row := r.conn.conn.QueryRow(query, &id)
+	row := r.conn.conn.QueryRow(query, &p.ID)
 	if err := row.Scan(dest...); err != nil {
 		return r.notFoundErr
 	}

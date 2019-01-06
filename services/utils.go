@@ -4,6 +4,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
+	"strconv"
 	"tp-project-db/errs"
 )
 
@@ -34,6 +35,14 @@ func (srv *Server) WriteError(ctx *fasthttp.RequestCtx, err *errs.Error) {
 
 func (srv *Server) readNickname(ctx *fasthttp.RequestCtx) string {
 	return srv.readPathParam(ctx, "nickname")
+}
+
+func (srv *Server) readID(ctx *fasthttp.RequestCtx) (int64, *errs.Error) {
+	idStr := ctx.UserValue("id").(string)
+	if id, err := strconv.ParseInt(idStr, 10, 64); err == nil {
+		return id, nil
+	}
+	return 0, srv.invalidFormatErr
 }
 
 func (srv *Server) readSlug(ctx *fasthttp.RequestCtx) string {
