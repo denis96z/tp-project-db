@@ -282,8 +282,35 @@ type PostsByThreadSearchArgs struct {
 	Limit      int
 }
 
-func (r *PostRepository) FindPostsByThreadID(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
-	return nil, nil //TODO
+func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
+	query := `SELECT ` + ThreadAttributes + ` FROM "post" p `
+	qArgs := make([]interface{}, 0, 1)
+
+	if !args.ThreadID.Valid {
+		query += `JOIN "thread" th ON th."id" = p."id" AND th."slug" = $1`
+		qArgs = append(qArgs, &args.ThreadSlug.String)
+	} else {
+		query += `WHERE p."id" = $1`
+		qArgs = append(qArgs, &args.ThreadID.Int64)
+	}
+	query += `;`
+
+	rows, err := r.conn.conn.Query(query, qArgs...)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	posts := make([]models.Post, 0)
+	for rows.Next() {
+		var post models.Post
+		if err := r.scanPost(rows.Scan, &post); err != nil {
+			panic(err)
+		}
+		posts = append(posts)
+	}
+
+	return (*models.Posts)(&posts), nil
 }
 
 func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
