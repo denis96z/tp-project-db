@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"github.com/jackc/pgx"
 	"tp-project-db/errs"
 	"tp-project-db/models"
@@ -63,6 +64,12 @@ const (
         AFTER INSERT ON "post"
         FOR EACH ROW
         EXECUTE PROCEDURE post_insert_trigger_func();
+    `
+
+	PostAttributes = `
+        p."id",p."parent_id",p."author",
+        p."forum",p."thread",p."message",
+        p."created_timestamp",p."is_edited"
     `
 
 	InsertPost                    = "insert_post"
@@ -162,7 +169,57 @@ func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
 }
 
 func (r *PostRepository) FindPostByID(id int64, post *models.PostFull) *errs.Error {
-	return nil //TODO
+	mapPtr := (*map[string]interface{})(post)
+
+	var fAttr, fJoin string
+	var thAttr, thJoin string
+	var uAttr, uJoin string
+
+	p, _ := (*mapPtr)["post"].(*models.Post)
+	dest := []interface{}{
+		&p.ID, &p.ParentID, &p.Author,
+		&p.Forum, &p.Thread, &p.Message,
+		&p.CreatedTimestamp, &p.IsEdited,
+	}
+
+	if fItf, ok := (*mapPtr)["forum"]; ok {
+		fAttr = `,` + ForumAttributes
+		fJoin = ` JOIN "forum" f ON f."slug" = p."forum"`
+
+		f := fItf.(*models.Forum)
+		dest = append(dest,
+			&f.Slug, &f.Title, &f.AdminNickname, &f.NumThreads, &f.NumPosts,
+		)
+	}
+	if thItf, ok := (*mapPtr)["thread"]; ok {
+		thAttr = `,` + ThreadAttributes
+		thJoin = ` JOIN "thread" th ON th."id" = p."thread"`
+
+		th := thItf.(*models.Thread)
+		dest = append(dest,
+			&th.ID, &th.Slug, &th.Title, &th.Forum, &th.Author,
+			&th.CreatedTimestamp, &th.Message, &th.NumVotes,
+		)
+	}
+	if uItf, ok := (*mapPtr)["user"]; ok {
+		uAttr = `,` + UserAttributes
+		uJoin = ` JOIN "user" u ON u."nickname" = p."author"`
+
+		u := uItf.(*models.User)
+		dest = append(dest,
+			&u.Nickname, &u.FullName, &u.Email, &u.About,
+		)
+	}
+	query := fmt.Sprintf(`SELECT %s%s%s%s FROM "post" p %s%s%s WHERE p."id" = $1;`,
+		PostAttributes, fAttr, thAttr, uAttr, fJoin, thJoin, uJoin,
+	)
+
+	row := r.conn.conn.QueryRow(query, &id)
+	if err := row.Scan(dest...); err != nil {
+		return r.notFoundErr
+	}
+
+	return nil
 }
 
 func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {

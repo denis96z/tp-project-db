@@ -65,6 +65,10 @@ const (
         EXECUTE PROCEDURE forum_insert_trigger_func();
     `
 
+	ForumAttributes = `
+        f."slug",f."title",f."admin",f."num_threads",f."num_posts"
+    `
+
 	InsertForum             = "insert_forum"
 	SelectForumExistsBySlug = "select_forum_exists_by_slug"
 	SelectForumSlugBySlug   = "select_forum_slug_by_slug"
