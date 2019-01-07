@@ -39,7 +39,9 @@ func (t *NullTimestamp) MarshalJSON() ([]byte, error) {
 }
 
 func (t *NullTimestamp) UnmarshalJSON(b []byte) error {
-	tStr := string(b)
+	var tStr string
+	_ = json.Unmarshal(b, &tStr)
+
 	if tStr == "null" {
 		t.Valid = false
 		return nil
