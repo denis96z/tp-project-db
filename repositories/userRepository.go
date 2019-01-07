@@ -111,9 +111,10 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertUserStatement           = "insert_user_statement"
-	SelectUserByNicknameStatement = "select_user_by_nickname_statement"
-	UpdateUserStatement           = "update_user_statement"
+	InsertUserStatement                   = "insert_user_statement"
+	SelectUserNicknameByNicknameStatement = "select_user_nickname_by_nickname"
+	SelectUserByNicknameStatement         = "select_user_by_nickname_statement"
+	UpdateUserStatement                   = "update_user_statement"
 )
 
 type UserRepository struct {
@@ -138,6 +139,13 @@ func (r *UserRepository) Init() error {
 
 	err = r.conn.prepareStmt(InsertUserStatement, `
         SELECT * FROM insert_user($1,$2,$3,$4);
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectUserNicknameByNicknameStatement, `
+        SELECT u."nickname" FROM "user" u WHERE u."nickname" = $1;
     `)
 	if err != nil {
 		return err
