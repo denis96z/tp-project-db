@@ -27,7 +27,8 @@ func main() {
 	forumRepository := repositories.NewForumRepository(conn)
 	handleErr(forumRepository.Init())
 
-	log.Println(forumRepository)
+	threadRepository := repositories.NewThreadRepository(conn)
+	handleErr(threadRepository.Init())
 
 	statusRepository := repositories.NewStatusRepository(conn)
 	handleErr(statusRepository.Init())
@@ -40,6 +41,7 @@ func main() {
 		services.ServerComponents{
 			UserRepository:   userRepository,
 			ForumRepository:  forumRepository,
+			ThreadRepository: threadRepository,
 			StatusRepository: statusRepository,
 		},
 	)
