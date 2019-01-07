@@ -109,11 +109,13 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertThreadStatement             = "insert_thread_statement"
-	SelectThreadExistsByIDStatement   = "select_thread_exists_by_id_statement"
-	SelectThreadExistsBySlugStatement = "select_thread_exists_by_slug_statement"
-	SelectThreadByIDStatement         = "select_thread_by_id_statement"
-	SelectThreadBySlugStatement       = "select_thread_by_slug_statement"
+	InsertThreadStatement                 = "insert_thread_statement"
+	SelectThreadExistsByIDStatement       = "select_thread_exists_by_id_statement"
+	SelectThreadExistsBySlugStatement     = "select_thread_exists_by_slug_statement"
+	SelectThreadByIDStatement             = "select_thread_by_id_statement"
+	SelectThreadBySlugStatement           = "select_thread_by_slug_statement"
+	SelectThreadForumByIDStatement        = "select_thread_forum_by_id_statement"
+	SelectThreadIDAndForumBySlugStatement = "select_thread_id_and_forum_by_slug_statement"
 )
 
 type ThreadRepository struct {
@@ -184,6 +186,24 @@ func (r *ThreadRepository) Init() error {
             'created', "created_timestamp",
             'message', "message", 'votes', "num_votes"
         )
+        FROM "thread" th
+        WHERE th."slug" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectThreadForumByIDStatement, `
+        SELECT th."forum"
+        FROM "thread" th
+        WHERE th."id" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectThreadIDAndForumBySlugStatement, `
+        SELECT th."id", th."forum"
         FROM "thread" th
         WHERE th."slug" = $1;
     `)
@@ -266,4 +286,20 @@ func (r *ThreadRepository) FindThreadBySlug(slug *string, existing *string) int 
 	}
 
 	return http.StatusOK
+}
+
+func (r *ThreadRepository) FindThreadForumByID(args *CreatePostArgs) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadForumByIDStatement, &args.ThreadID)
+	if row.Scan(&args.ThreadForum) != nil {
+		return r.notFoundErr
+	}
+	return nil
+}
+
+func (r *ThreadRepository) FindThreadIDAndForumBySlug(args *CreatePostArgs) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadIDAndForumBySlugStatement, &args.ThreadSlug)
+	if row.Scan(&args.ThreadID, &args.ThreadForum) != nil {
+		return r.notFoundErr
+	}
+	return nil
 }

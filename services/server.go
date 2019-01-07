@@ -20,6 +20,7 @@ type ServerComponents struct {
 	UserRepository   *repositories.UserRepository
 	ForumRepository  *repositories.ForumRepository
 	ThreadRepository *repositories.ThreadRepository
+	PostRepository   *repositories.PostRepository
 	StatusRepository *repositories.StatusRepository
 }
 
@@ -59,11 +60,11 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 		r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
 		r.GET("/api/forum/:slug/users", srv.findUsersByForum)
 		r.GET("/api/post/:id/details", srv.findPost)
-		r.POST("/api/post/:id/details", srv.updatePost)
-		r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
+		r.POST("/api/post/:id/details", srv.updatePost)*/
+	r.POST("/api/thread/:slug_or_id/create", srv.createPosts) /*
 		r.POST("/api/thread/:slug_or_id/vote", srv.addVote)*/
-	r.GET("/api/thread/:slug_or_id/details", srv.findThread) /*
-		r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
+	r.GET("/api/thread/:slug_or_id/details", srv.findThread)
+	r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread) /*
 		r.POST("/api/thread/:slug_or_id/details", srv.updateThread)*/
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUser)
