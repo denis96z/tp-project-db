@@ -24,8 +24,7 @@ const (
                 CONSTRAINT "post_id_pk" PRIMARY KEY,
             "parent_id" BIGINT
                 DEFAULT(0)
-                CONSTRAINT "post_parent_id_not_null" NOT NULL
-                CONSTRAINT "post_parent_id_fk" REFERENCES "post"("id") ON DELETE CASCADE,
+                CONSTRAINT "post_parent_id_not_null" NOT NULL,
             "author" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "post_author_not_null" NOT NULL
                 CONSTRAINT "post_author_fk" REFERENCES "user"("nickname") ON DELETE CASCADE,
@@ -52,7 +51,7 @@ const (
         p."created_timestamp",p."is_edited"
     `
 
-	InsertPost                    = "insert_post"
+	SelectNextPostID              = "select_next_id"
 	IncForumNumPosts              = "update_forum_num_posts"
 	InsertForumUser               = "insert_forum_user"
 	SelectPostByID                = "select_post_by_id"
@@ -86,25 +85,10 @@ func (r *PostRepository) Init() error {
 		return err
 	}
 
-	err = r.conn.prepareStmt(InsertPost, `
-        INSERT INTO "post"(
-            "parent_id","author","forum","thread",
-            "message","created_timestamp","path"
-        ) VALUES($1,$2,$3,$4,$5,$6,(
-            SELECT
-                CASE
-                    WHEN $1::BIGINT IS NULL THEN array_append('{}', (
-                        SELECT last_value FROM "post_id_seq"
-                    ))
-                    ELSE (
-                        SELECT array_append(p."path", (
-                            SELECT last_value FROM "post_id_seq"
-                        ))
-                        FROM "post" p
-                        WHERE p."id" = $1::BIGINT
-                    )
-                END
-        )) RETURNING "id";
+	err = r.conn.prepareStmt(SelectNextPostID, `
+        UPDATE "forum" SET
+            "num_posts" = "num_posts" + $2
+        WHERE "slug" = $1;
     `)
 	if err != nil {
 		return err
@@ -112,7 +96,7 @@ func (r *PostRepository) Init() error {
 
 	err = r.conn.prepareStmt(IncForumNumPosts, `
         UPDATE "forum" SET
-            "num_posts" = "num_posts" + 1
+            "num_posts" = "num_posts" + $2
         WHERE "slug" = $1;
     `)
 	if err != nil {
@@ -171,23 +155,33 @@ type CreatePostArgs struct {
 	Timestamp   strfmt.DateTime
 }
 
-func (r *PostRepository) CreatePost(posts *models.Posts, args *CreatePostArgs) *errs.Error {
+func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
 		arrPtr := (*[]models.Post)(posts)
 		n := len(*arrPtr)
 
+		var idIndex int64
+		row := tx.QueryRow(`SELECT last_value FROM "post_id_seq";`)
+		if err := row.Scan(&idIndex); err != nil {
+			panic(err)
+		}
+
 		query := `INSERT INTO "post"(
             "parent_id","author","forum","thread",
-            "message","created_timestamp","path"
+            "created_timestamp","message","path"
         )`
 
 		qArgs := make([]interface{}, 0, n*7)
 		index := 1
 
 		for i := 0; i < n; i++ {
+			idIndex++
+
 			postPtr := &(*arrPtr)[i]
+			postPtr.ID = idIndex
 			postPtr.Thread = args.ThreadID
 			postPtr.Forum = args.ThreadForum
+			postPtr.CreatedTimestamp = args.Timestamp
 
 			if postPtr.ParentID != 0 {
 				var exists bool
@@ -205,28 +199,26 @@ func (r *PostRepository) CreatePost(posts *models.Posts, args *CreatePostArgs) *
 			}
 
 			if i > 0 {
-				query += `,`
+				query += `, `
+			} else {
+				query += ` VALUES`
 			}
-			query += fmt.Sprintf(` VALUES($%d,$%d,$%d,$%d,$%d,$%d,(
+			query += fmt.Sprintf(`($%d,$%d,$%d,$%d,$%d,$%d,(
                 SELECT
                     CASE
-                        WHEN $%d::BIGINT IS NULL THEN array_append('{}', (
-                            SELECT last_value FROM "post_id_seq"
-                        ))
+                        WHEN $%d::BIGINT = 0 THEN array_append('{}', %d::BIGINT)
                         ELSE (
-                            SELECT array_append(p."path", (
-                                SELECT last_value FROM "post_id_seq"
-                            ))
+                            SELECT array_append(p."path", %d::BIGINT)
                             FROM "post" p
                             WHERE p."id" = $%d::BIGINT
                         )
                     END
                 ))
                 `,
-				index, index+1, index+2, index+3,
-				index+4, index+5, index, index,
+				index, index+1, index+2, index+3, index+4, index+5,
+				index, idIndex, idIndex, index,
 			)
-			index++
+			index += 6
 			qArgs = append(qArgs,
 				&postPtr.ParentID, &postPtr.Author,
 				&postPtr.Forum, &postPtr.Thread,
@@ -250,6 +242,32 @@ func (r *PostRepository) CreatePost(posts *models.Posts, args *CreatePostArgs) *
 			if err := rows.Scan(&rowPtr.ID); err != nil {
 				panic(err)
 			}
+		}
+
+		_, err = tx.Exec(IncForumNumPosts, &args.ThreadForum, &n)
+		if err != nil {
+			panic(err)
+		}
+
+		query = `INSERT INTO "forum_user"("forum","user") VALUES`
+		qArgs = make([]interface{}, 0, 2*n)
+		index = 1
+
+		for i := 0; i < n; i++ {
+			if i > 0 {
+				query += `, `
+			}
+
+			query += fmt.Sprintf(`($%d,$%d)`, index, index+1)
+			index += 2
+			qArgs = append(qArgs, &args.ThreadForum, &(*arrPtr)[i].Author)
+		}
+
+		query += ` ON CONFLICT DO NOTHING;`
+
+		_, err = tx.Exec(query, qArgs...)
+		if err != nil {
+			panic(err)
 		}
 
 		return nil
@@ -427,7 +445,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 			qArgs = append(qArgs, &args.ThreadID.Int64)
 		}
 
-		query += ` AND r."parent_id" IS NULL`
+		query += ` AND r."parent_id" = 0`
 
 		if args.Since > 0 {
 			qArgsIndex++

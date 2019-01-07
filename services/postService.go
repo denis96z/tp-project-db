@@ -13,7 +13,7 @@ import (
 	"tp-project-db/repositories"
 )
 
-func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
+func (srv *Server) createPosts(ctx *fasthttp.RequestCtx) {
 	args := repositories.CreatePostArgs{
 		ThreadID:  -1,
 		Timestamp: strfmt.DateTime(time.Now()),
@@ -41,8 +41,12 @@ func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if srv.components.PostRepository.CreatePost(&posts, &args) != nil {
-		srv.WriteCommonError(ctx, http.StatusConflict)
+	if err := srv.components.PostRepository.CreatePosts(&posts, &args); err != nil {
+		if err.HttpStatus == http.StatusNotFound {
+			srv.WriteCommonError(ctx, http.StatusNotFound)
+		} else {
+			srv.WriteCommonError(ctx, http.StatusConflict)
+		}
 		return
 	}
 

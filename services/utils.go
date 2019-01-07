@@ -21,6 +21,7 @@ func (srv *Server) ReadBody(ctx *fasthttp.RequestCtx, v easyjson.Unmarshaler) *e
 
 func (srv *Server) WriteCommonError(ctx *fasthttp.RequestCtx, status int) {
 	ctx.SetStatusCode(status)
+	ctx.Response.Header.SetContentType(JsonType)
 	ctx.Response.SetBody(srv.commonErr)
 }
 

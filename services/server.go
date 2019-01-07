@@ -58,7 +58,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 		invalidFormatErr: errs.NewInvalidFormatError(InvalidFormatErrMessage),
 
 		commonErr: func() []byte {
-			err := errs.NewError(http.StatusInternalServerError, "")
+			err := errs.NewError(http.StatusInternalServerError, "error")
 			b, _ := easyjson.Marshal(err)
 			return b
 		}(),
@@ -72,7 +72,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.GET("/api/forum/:slug/users", srv.findUsersByForum)
 	r.GET("/api/post/:id/details", srv.findPost)
 	r.POST("/api/post/:id/details", srv.updatePost)
-	r.POST("/api/thread/:slug_or_id/create", srv.createPost)
+	r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
 	r.POST("/api/thread/:slug_or_id/vote", srv.addVote)
 	r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
 	r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
@@ -80,7 +80,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
-	r.POST("/api/service/clear", srv.deleteAllUsers)
+	//r.POST("/api/service/clear", srv.deleteAllUsers)
 	r.GET("/api/service/status", srv.getStatus)
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
