@@ -16,6 +16,12 @@ func (srv *Server) createUser(ctx *fasthttp.RequestCtx) {
 	var existing string
 	status := srv.components.UserRepository.CreateUser(&user, &existing)
 
+	if status == http.StatusCreated {
+		srv.rwMtx.Lock()
+		srv.status.NumUsers++
+		srv.rwMtx.Unlock()
+	}
+
 	ctx.SetStatusCode(status)
 	ctx.Response.Header.SetContentType(JsonType)
 	ctx.Response.SetBody([]byte(existing))

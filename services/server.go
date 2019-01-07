@@ -5,7 +5,9 @@ import (
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
 	"net/http"
+	"sync"
 	"tp-project-db/errs"
+	"tp-project-db/models"
 	"tp-project-db/repositories"
 )
 
@@ -29,15 +31,19 @@ type Server struct {
 	config     ServerConfig
 	components ServerComponents
 
-	invalidFormatErr *errs.Error
-	commonErr        []byte
+	rwMtx  *sync.RWMutex
+	status models.Status
+
+	commonErr []byte
 }
 
 func NewServer(config ServerConfig, components ServerComponents) *Server {
 	srv := &Server{
-		config:           config,
-		components:       components,
-		invalidFormatErr: errs.NewInvalidFormatError(InvalidFormatErrMessage),
+		config:     config,
+		components: components,
+
+		status: models.Status{},
+		rwMtx:  &sync.RWMutex{},
 
 		commonErr: func() []byte {
 			err := errs.NewError(http.StatusInternalServerError, "error")
@@ -47,6 +53,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	}
 
 	r := router.New()
+	components.StatusRepository.GetStatus(&srv.status)
 
 	/*r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))
 	r.POST("/api/forum/:slug/create", srv.createThread)
@@ -63,8 +70,8 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUser)
 	r.POST("/api/user/:nickname/profile", srv.updateUser)
-	/*r.POST("/api/service/clear", srv.deleteAllUsers)
-	r.GET("/api/service/status", srv.getStatus)*/
+	/*r.POST("/api/service/clear", srv.deleteAllUsers)*/
+	r.GET("/api/service/status", srv.getStatus)
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {

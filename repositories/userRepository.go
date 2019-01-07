@@ -61,8 +61,6 @@ const (
                 'fullname', "fullname", 'about', "about"
             ) INTO _existing_;
 
-            PERFORM inc_num_users();
-
             RETURN (201, _existing_);
         END;
         $$ LANGUAGE PLPGSQL;
