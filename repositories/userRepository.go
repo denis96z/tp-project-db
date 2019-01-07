@@ -27,9 +27,43 @@ const (
         );
 
         CREATE UNIQUE INDEX IF NOT EXISTS "user_email_idx" ON "user"("email");
+
+        CREATE OR REPLACE FUNCTION insert_user(
+             _nickname_ TEXT, _email_ TEXT, _full_name_ TEXT, _about_ TEXT
+        )
+        RETURNS "insert_result"
+        AS $$
+        DECLARE _existing_ JSON;
+        BEGIN
+            SELECT json_agg(json_build_object(
+                u."nickname",u."email",u."fullname",u."about"
+            ))
+            FROM (
+                SELECT u.*
+                FROM "user" u
+                WHERE u.nickname = _nickname_
+                UNION
+                SELECT u.*
+                FROM "user" u
+                WHERE u.email = _email_
+            ) u
+            INTO _existing_;
+
+            IF _existing_ IS NOT NULL THEN
+                RETURN (409, _existing_);
+            END IF;
+
+            INSERT INTO "user"("nickname","email","fullname","about")
+            VALUES(_nickname_,_email_,_full_name_,_about_);
+
+            PERFORM inc_num_users();
+
+            RETURN (200, _existing_);
+        END;
+        $$ LANGUAGE PLPGSQL;
     `
 
-	InsertUser                   = "insert_user"
+	InsertUserStatement          = "insert_user_statement"
 	SelectUserExistsByNickname   = "select_user_exists_by_nickname"
 	SelectUserNicknameByNickname = "select_user_nickname_by_nickname"
 	SelectUserByNickname         = "select_user_by_nickname"
@@ -38,8 +72,7 @@ const (
 
 	UserAttributes  = `u."nickname",u."fullname",u."email",u."about"`
 	InsertUserQuery = `
-        INSERT INTO "user"("nickname","fullname","email","about")
-        VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING;
+        DO 
     `
 	SelectUserNicknameByNicknameQuery = `
         SELECT u."nickname" FROM "user" u WHERE u."nickname" = $1;
@@ -94,10 +127,13 @@ func (r *UserRepository) Init() error {
 		return err
 	}
 
-	err = r.conn.prepareStmt(InsertUser, InsertUserQuery)
+	err = r.conn.prepareStmt(InsertUserStatement, `
+        SELECT * FROM insert_user($1,$2,$3,$4);
+    `)
 	if err != nil {
 		return err
 	}
+
 	err = r.conn.prepareStmt(SelectUserExistsByNickname, SelectUserExistsByNicknameQuery)
 	if err != nil {
 		return err
@@ -122,36 +158,17 @@ func (r *UserRepository) Init() error {
 	return nil
 }
 
-func (r *UserRepository) CreateUser(user *models.User, existing *models.Users) *errs.Error {
-	res, err := r.conn.conn.Exec(InsertUser,
-		user.Nickname, user.FullName, user.Email, user.About,
+func (r *UserRepository) CreateUser(user *models.User, existing *string) int {
+	var status int
+
+	row := r.conn.conn.QueryRow(InsertUserStatement,
+		user.Nickname, user.Email, user.FullName, user.About,
 	)
-	if err != nil {
-		return errs.NewInternalError(err.Error())
+	if err := row.Scan(&status, existing); err != nil {
+		panic(err)
 	}
 
-	if res.RowsAffected() == 1 {
-		return nil
-	}
-
-	rows, err := r.conn.conn.Query(SelectUserByNicknameOrEmail,
-		user.Nickname, user.Email,
-	)
-	if err != nil {
-		return errs.NewInternalError(err.Error())
-	}
-	defer rows.Close()
-
-	users := make([]models.User, 0, 1)
-	for rows.Next() {
-		if err := rows.Scan(&user.Nickname, &user.FullName, &user.Email, &user.About); err != nil {
-			return errs.NewInternalError(err.Error())
-		}
-		users = append(users, *user)
-	}
-
-	*existing = models.Users(users)
-	return r.conflictErr
+	return status
 }
 
 func (r *UserRepository) FindUserByNickname(user *models.User) *errs.Error {

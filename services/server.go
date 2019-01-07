@@ -4,9 +4,7 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"net/http"
-	"net/http/pprof"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
@@ -68,7 +66,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	r := router.New()
 
-	r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))
+	/*r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))
 	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
@@ -79,12 +77,12 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/thread/:slug_or_id/vote", srv.addVote)
 	r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
 	r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
-	r.POST("/api/thread/:slug_or_id/details", srv.updateThread)
+	r.POST("/api/thread/:slug_or_id/details", srv.updateThread)*/
 	r.POST("/api/user/:nickname/create", srv.createUser)
-	r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
+	/*r.GET("/api/user/:nickname/profile", srv.findUserByNickname)
 	r.POST("/api/user/:nickname/profile", srv.updateUserByNickname)
 	r.POST("/api/service/clear", srv.deleteAllUsers)
-	r.GET("/api/service/status", srv.getStatus)
+	r.GET("/api/service/status", srv.getStatus)*/
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
