@@ -73,7 +73,8 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertForumStatement = "insert_forum_statement"
+	InsertForumStatement       = "insert_forum_statement"
+	SelectForumBySlugStatement = "select_forum_by_slug_statement"
 )
 
 type ForumRepository struct {
@@ -105,6 +106,16 @@ func (r *ForumRepository) Init() error {
 		return err
 	}
 
+	err = r.conn.prepareStmt(SelectForumBySlugStatement, `
+        SELECT f."slug",f."admin",f."title",
+            f."num_threads", f."num_posts"
+        FROM "forum" f
+        WHERE "slug" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -121,14 +132,28 @@ func (r *ForumRepository) CreateForum(forum *models.Forum, existing *sql.NullStr
 	return status
 }
 
-/*
-func (r *ForumRepository) FindForumBySlug(forum *models.Forum) *errs.Error {
-	row := r.conn.conn.QueryRow(SelectForumBySlug, forum.Slug)
-	err := row.Scan(
-		&forum.Slug, &forum.Title, &forum.Admin, &forum.NumThreads, &forum.NumPosts,
-	)
+func (r *UserRepository) FindForum(forum *models.Forum) *errs.Error {
+	rows, err := r.conn.conn.Query(SelectForumBySlugStatement, &forum.Slug)
 	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	found := false
+	for rows.Next() {
+		found = true
+		err = rows.Scan(
+			&forum.Slug, &forum.Admin, &forum.Title,
+			&forum.NumThreads, &forum.NumPosts,
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if !found {
 		return r.notFoundErr
 	}
+
 	return nil
-}*/
+}
