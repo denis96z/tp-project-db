@@ -66,15 +66,16 @@ const (
         EXECUTE PROCEDURE thread_insert_trigger_func();
     `
 
-	InsertThread             = "insert_thread"
-	SelectThreadExistsByID   = "select_thread_exists_by_id"
-	SelectThreadExistsBySlug = "select_thread_exists_by_slug"
-	SelectThreadIDBySlug     = "select_thread_id_by_slug"
-	SelectThreadForumByID    = "select_thread_forum_by_id"
-	SelectThreadByID         = "select_thread_by_id"
-	SelectThreadBySlug       = "select_thread_by_slug"
-	UpdateThreadByID         = "update_thread_by_id"
-	UpdateThreadBySlug       = "update_thread_by_slug"
+	InsertThread              = "insert_thread"
+	SelectThreadIDForumBySlug = "select_thread_id_forum_by_slug"
+	SelectThreadExistsByID    = "select_thread_exists_by_id"
+	SelectThreadExistsBySlug  = "select_thread_exists_by_slug"
+	SelectThreadIDBySlug      = "select_thread_id_by_slug"
+	SelectThreadForumByID     = "select_thread_forum_by_id"
+	SelectThreadByID          = "select_thread_by_id"
+	SelectThreadBySlug        = "select_thread_by_slug"
+	UpdateThreadByID          = "update_thread_by_id"
+	UpdateThreadBySlug        = "update_thread_by_slug"
 
 	InsertThreadQuery = `
         INSERT INTO "thread"("slug","title","forum","author","created_timestamp","message")
@@ -159,6 +160,16 @@ func (r *ThreadRepository) Init() error {
 	if err != nil {
 		return err
 	}
+
+	err = r.conn.prepareStmt(SelectThreadIDForumBySlug, `
+        SELECT th."id",th."forum"
+        FROM "thread" th
+        WHERE th."slug" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
 	err = r.conn.prepareStmt(SelectThreadExistsByID, SelectThreadExistsByIDQuery)
 	if err != nil {
 		return err
@@ -192,6 +203,22 @@ func (r *ThreadRepository) Init() error {
 		return err
 	}
 
+	return nil
+}
+
+func (r *ThreadRepository) FindThreadForumByID(args *CreatePostArgs) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadForumByID, &args.ThreadID)
+	if row.Scan(&args.ThreadForum) != nil {
+		return r.notFoundErr
+	}
+	return nil
+}
+
+func (r *ThreadRepository) FindThreadIDAndForumBySlug(args *CreatePostArgs) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectThreadIDForumBySlug, &args.ThreadSlug)
+	if row.Scan(&args.ThreadID, &args.ThreadForum) != nil {
+		return r.notFoundErr
+	}
 	return nil
 }
 

@@ -266,9 +266,7 @@ func easyjson5a72dc82DecodeTpProjectDbModels3(in *jlexer.Lexer, out *Post) {
 		case "message":
 			out.Message = string(in.String())
 		case "created":
-			if data := in.Raw(); in.Ok() {
-				in.AddError((out.CreatedTimestamp).UnmarshalJSON(data))
-			}
+			(out.CreatedTimestamp).UnmarshalEasyJSON(in)
 		case "isEdited":
 			out.IsEdited = bool(in.Bool())
 		default:
@@ -353,7 +351,7 @@ func easyjson5a72dc82EncodeTpProjectDbModels3(out *jwriter.Writer, in Post) {
 		} else {
 			out.RawString(prefix)
 		}
-		out.Raw((in.CreatedTimestamp).MarshalJSON())
+		(in.CreatedTimestamp).MarshalEasyJSON(out)
 	}
 	{
 		const prefix string = ",\"isEdited\":"

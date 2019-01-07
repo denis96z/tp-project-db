@@ -2,7 +2,9 @@ package services
 
 import (
 	"github.com/fasthttp/router"
+	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
+	"net/http"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
@@ -46,6 +48,7 @@ type Server struct {
 	components ServerComponents
 
 	invalidFormatErr *errs.Error
+	commonErr        []byte
 }
 
 func NewServer(config ServerConfig, components ServerComponents) *Server {
@@ -53,6 +56,12 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 		config:           config,
 		components:       components,
 		invalidFormatErr: errs.NewInvalidFormatError(InvalidFormatErrMessage),
+
+		commonErr: func() []byte {
+			err := errs.NewError(http.StatusInternalServerError, "")
+			b, _ := easyjson.Marshal(err)
+			return b
+		}(),
 	}
 
 	r := router.New()

@@ -19,6 +19,11 @@ func (srv *Server) ReadBody(ctx *fasthttp.RequestCtx, v easyjson.Unmarshaler) *e
 	return nil
 }
 
+func (srv *Server) WriteCommonError(ctx *fasthttp.RequestCtx, status int) {
+	ctx.SetStatusCode(status)
+	ctx.Response.SetBody(srv.commonErr)
+}
+
 func (srv *Server) ReadBodyAllowEmpty(ctx *fasthttp.RequestCtx, v easyjson.Unmarshaler) *errs.Error {
 	b := ctx.PostBody()
 	if len(b) == 2 {

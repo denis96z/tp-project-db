@@ -14,46 +14,36 @@ import (
 )
 
 func (srv *Server) createPost(ctx *fasthttp.RequestCtx) {
-	var threadID int32
-	threadSlug := srv.readSlugOrID(ctx)
+	args := repositories.CreatePostArgs{
+		ThreadID:  -1,
+		Timestamp: strfmt.DateTime(time.Now()),
+	}
+	args.ThreadSlug = ctx.UserValue("slug_or_id").(string)
 
-	if id, err := strconv.ParseInt(threadSlug, 10, 32); err == nil {
-		threadID = int32(id)
-		if err := srv.components.ThreadRepository.CheckThreadExists(threadID); err != nil {
-			srv.WriteError(ctx, err)
+	if id, err := strconv.ParseInt(args.ThreadSlug, 10, 32); err == nil {
+		args.ThreadID = int32(id)
+		if srv.components.ThreadRepository.FindThreadForumByID(&args) != nil {
+			srv.WriteCommonError(ctx, http.StatusNotFound)
 			return
 		}
 	} else {
-		if err := srv.components.ThreadRepository.FindThreadIDBySlug(&threadID, threadSlug); err != nil {
-			srv.WriteError(ctx, err)
+		if srv.components.ThreadRepository.FindThreadIDAndForumBySlug(&args) != nil {
+			srv.WriteCommonError(ctx, http.StatusNotFound)
 			return
 		}
 	}
 
 	var posts models.Posts
-	if err := srv.ReadBody(ctx, &posts); err != nil {
-		srv.WriteError(ctx, srv.invalidFormatErr)
+	_ = srv.ReadBody(ctx, &posts)
+
+	if len(([]models.Post)(posts)) == 0 {
+		srv.WriteJSON(ctx, http.StatusCreated, &posts)
 		return
 	}
 
-	currentTimestamp := models.NullTimestamp{
-		Valid:     true,
-		Timestamp: strfmt.DateTime(time.Now()),
-	}
-
-	for i := 0; i < len(posts); i++ {
-		posts[i].Thread = threadID
-		posts[i].CreatedTimestamp = currentTimestamp
-
-		if err := srv.components.PostValidator.Validate(&posts[i]); err != nil {
-			srv.WriteError(ctx, err)
-			return
-		}
-
-		if err := srv.components.PostRepository.CreatePost(&posts[i]); err != nil {
-			srv.WriteError(ctx, err)
-			return
-		}
+	if srv.components.PostRepository.CreatePost(&posts, &args) != nil {
+		srv.WriteCommonError(ctx, http.StatusConflict)
+		return
 	}
 
 	srv.WriteJSON(ctx, http.StatusCreated, &posts)

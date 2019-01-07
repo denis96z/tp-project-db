@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
+	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
 	"tp-project-db/errs"
 	"tp-project-db/models"
@@ -24,7 +24,7 @@ const (
                 CONSTRAINT "post_id_pk" PRIMARY KEY,
             "parent_id" BIGINT
                 DEFAULT(0)
-                CONSTRAINT "post_parent_id_nullable" NULL
+                CONSTRAINT "post_parent_id_not_null" NOT NULL
                 CONSTRAINT "post_parent_id_fk" REFERENCES "post"("id") ON DELETE CASCADE,
             "author" CITEXT COLLATE "ucs_basic"
                 CONSTRAINT "post_author_not_null" NOT NULL
@@ -44,28 +44,6 @@ const (
                 CONSTRAINT "post_is_edited_not_null" NOT NULL,
             "path" BIGINT ARRAY
         );
-
-        CREATE OR REPLACE FUNCTION post_insert_trigger_func()
-        RETURNS TRIGGER AS
-        $$
-        BEGIN
-            UPDATE "forum" SET
-                "num_posts" = "num_posts" + 1
-            WHERE "slug" = NEW."forum";
-
-            INSERT INTO "forum_user"("user","forum")
-            VALUES(NEW."author",NEW."forum") ON CONFLICT DO NOTHING;
-
-            RETURN NEW;
-        END;
-        $$ LANGUAGE PLPGSQL;
-
-        DROP TRIGGER IF EXISTS "post_insert_trigger" ON "post";
-
-        CREATE TRIGGER "post_insert_trigger"
-        AFTER INSERT ON "post"
-        FOR EACH ROW
-        EXECUTE PROCEDURE post_insert_trigger_func();
     `
 
 	PostAttributes = `
@@ -75,6 +53,8 @@ const (
     `
 
 	InsertPost                    = "insert_post"
+	IncForumNumPosts              = "update_forum_num_posts"
+	InsertForumUser               = "insert_forum_user"
 	SelectPostByID                = "select_post_by_id"
 	SelectPostExistsByIDAndThread = "select_post_exists_by_id_and_thread"
 	UpdatePostByID                = "update_post_by_id"
@@ -130,6 +110,23 @@ func (r *PostRepository) Init() error {
 		return err
 	}
 
+	err = r.conn.prepareStmt(IncForumNumPosts, `
+        UPDATE "forum" SET
+            "num_posts" = "num_posts" + 1
+        WHERE "slug" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(InsertForumUser, `
+        INSERT INTO "forum_user"("user","forum")
+        VALUES($1,$2) ON CONFLICT DO NOTHING;
+    `)
+	if err != nil {
+		return err
+	}
+
 	err = r.conn.prepareStmt(SelectPostByID, `
         SELECT `+PostAttributes+`
         FROM "post" p
@@ -167,44 +164,94 @@ func (r *PostRepository) Init() error {
 	return nil
 }
 
-func (r *PostRepository) CreatePost(post *models.Post) *errs.Error {
+type CreatePostArgs struct {
+	ThreadID    int32
+	ThreadSlug  string
+	ThreadForum string
+	Timestamp   strfmt.DateTime
+}
+
+func (r *PostRepository) CreatePost(posts *models.Posts, args *CreatePostArgs) *errs.Error {
 	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
-		if post.ParentID != 0 {
-			var parentIDExists bool
-			row := tx.QueryRow(SelectPostExistsByIDAndThread, post.ParentID, post.Thread)
-			if err := row.Scan(&parentIDExists); err != nil || !parentIDExists {
-				return r.conflictErr
+		arrPtr := (*[]models.Post)(posts)
+		n := len(*arrPtr)
+
+		query := `INSERT INTO "post"(
+            "parent_id","author","forum","thread",
+            "message","created_timestamp","path"
+        )`
+
+		qArgs := make([]interface{}, 0, n*7)
+		index := 1
+
+		for i := 0; i < n; i++ {
+			postPtr := &(*arrPtr)[i]
+			postPtr.Thread = args.ThreadID
+			postPtr.Forum = args.ThreadForum
+
+			if postPtr.ParentID != 0 {
+				var exists bool
+				row := tx.QueryRow(SelectPostExistsByIDAndThread,
+					&postPtr.ParentID, &postPtr.Thread,
+				)
+				if _ = row.Scan(&exists); !exists {
+					return r.conflictErr
+				}
+			}
+
+			row := tx.QueryRow(SelectUserNicknameByNickname, &postPtr.Author)
+			if row.Scan(&postPtr.Author) != nil {
+				return r.authorNotFoundErr
+			}
+
+			if i > 0 {
+				query += `,`
+			}
+			query += fmt.Sprintf(` VALUES($%d,$%d,$%d,$%d,$%d,$%d,(
+                SELECT
+                    CASE
+                        WHEN $%d::BIGINT IS NULL THEN array_append('{}', (
+                            SELECT last_value FROM "post_id_seq"
+                        ))
+                        ELSE (
+                            SELECT array_append(p."path", (
+                                SELECT last_value FROM "post_id_seq"
+                            ))
+                            FROM "post" p
+                            WHERE p."id" = $%d::BIGINT
+                        )
+                    END
+                ))
+                `,
+				index, index+1, index+2, index+3,
+				index+4, index+5, index, index,
+			)
+			index++
+			qArgs = append(qArgs,
+				&postPtr.ParentID, &postPtr.Author,
+				&postPtr.Forum, &postPtr.Thread,
+				&postPtr.CreatedTimestamp, &postPtr.Message,
+			)
+		}
+		query += `RETURNING "id";`
+
+		rows, err := tx.Query(query, qArgs...)
+		if err != nil {
+			panic(err)
+		}
+		defer rows.Close()
+
+		index = 0
+		for rows.Next() {
+			rowPtr := &(*arrPtr)[index]
+			index++
+
+			rowPtr.IsEdited = false
+			if err := rows.Scan(&rowPtr.ID); err != nil {
+				panic(err)
 			}
 		}
 
-		row := tx.QueryRow(SelectUserNicknameByNickname, post.Author)
-		if err := row.Scan(&post.Author); err != nil {
-			return r.authorNotFoundErr
-		}
-
-		row = tx.QueryRow(SelectThreadForumByID, post.Thread)
-		if err := row.Scan(&post.Forum); err != nil {
-			return r.threadNotFoundErr
-		}
-
-		var parentID driver.Value
-		if post.ParentID > 0 {
-			parentID = post.ParentID
-		} else {
-			parentID = nil
-		}
-
-		tStp, _ := post.CreatedTimestamp.Value()
-
-		row = tx.QueryRow(InsertPost,
-			parentID, post.Author, post.Forum,
-			post.Thread, post.Message, tStp,
-		)
-		if err := row.Scan(&post.ID); err != nil {
-			panic(err)
-		}
-
-		post.IsEdited = false
 		return nil
 	})
 }
@@ -462,20 +509,13 @@ func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
 }
 
 func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
-	var pID sql.NullInt64
 	err := f(
-		&post.ID, &pID, &post.Author,
+		&post.ID, &post.ParentID, &post.Author,
 		&post.Forum, &post.Thread, &post.Message,
 		&post.CreatedTimestamp, &post.IsEdited,
 	)
 	if err != nil {
 		return err
-	}
-
-	if pID.Valid {
-		post.ParentID = pID.Int64
-	} else {
-		post.ParentID = 0
 	}
 	return nil
 }

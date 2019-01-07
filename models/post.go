@@ -1,6 +1,7 @@
 package models
 
 import (
+	"github.com/go-openapi/strfmt"
 	"tp-project-db/consts"
 	"tp-project-db/errs"
 )
@@ -9,14 +10,14 @@ import (
 
 //easyjson:json
 type Post struct {
-	ID               int64         `json:"id"`
-	ParentID         int64         `json:"parent"`
-	Author           string        `json:"author"`
-	Forum            string        `json:"forum"`
-	Thread           int32         `json:"thread"`
-	Message          string        `json:"message"`
-	CreatedTimestamp NullTimestamp `json:"created"`
-	IsEdited         bool          `json:"isEdited"`
+	ID               int64           `json:"id"`
+	ParentID         int64           `json:"parent"`
+	Author           string          `json:"author"`
+	Forum            string          `json:"forum"`
+	Thread           int32           `json:"thread"`
+	Message          string          `json:"message"`
+	CreatedTimestamp strfmt.DateTime `json:"created"`
+	IsEdited         bool            `json:"isEdited"`
 }
 
 type PostValidator struct {

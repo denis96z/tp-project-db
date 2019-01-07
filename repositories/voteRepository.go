@@ -95,7 +95,8 @@ func (r *VoteRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(InsertVote, `
-        INSERT INTO "vote"("author","thread","voice") VALUES($1,$2,$3);
+        INSERT INTO "vote"("author","thread","voice")
+        VALUES($1,$2,$3);
     `)
 	if err != nil {
 		return err
