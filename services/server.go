@@ -11,10 +11,6 @@ import (
 	"tp-project-db/repositories"
 )
 
-const (
-	InvalidFormatErrMessage = "invalid request parameter"
-)
-
 type ServerConfig struct {
 	Host string
 	Port string
