@@ -21,11 +21,12 @@ const (
             "fullname" TEXT
                 CONSTRAINT "user_fullname_not_null" NOT NULL,
             "email" CITEXT COLLATE "ucs_basic"
-                CONSTRAINT "user_email_not_null" NOT NULL
-                CONSTRAINT "user_email_unique" UNIQUE,
+                CONSTRAINT "user_email_not_null" NOT NULL,
             "about" TEXT
                 CONSTRAINT "user_about_not_null" NOT NULL
         );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS "user_email_idx" ON "user"("email");
     `
 
 	InsertUser                   = "insert_user"
