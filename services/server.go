@@ -53,17 +53,17 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	components.StatusRepository.GetStatus(&srv.status)
 
 	/*r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))
-	r.POST("/api/forum/:slug/create", srv.createThread)
-	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
-	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
-	r.GET("/api/forum/:slug/users", srv.findUsersByForum)
-	r.GET("/api/post/:id/details", srv.findPost)
-	r.POST("/api/post/:id/details", srv.updatePost)
-	r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
-	r.POST("/api/thread/:slug_or_id/vote", srv.addVote)
-	r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
-	r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
-	r.POST("/api/thread/:slug_or_id/details", srv.updateThread)*/
+	r.POST("/api/forum/:slug/create", srv.createThread)*/
+	r.GET("/api/forum/:slug/details", srv.findForum) /*
+		r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
+		r.GET("/api/forum/:slug/users", srv.findUsersByForum)
+		r.GET("/api/post/:id/details", srv.findPost)
+		r.POST("/api/post/:id/details", srv.updatePost)
+		r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
+		r.POST("/api/thread/:slug_or_id/vote", srv.addVote)
+		r.GET("/api/thread/:slug_or_id/details", srv.findThreadBySlugOrID)
+		r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
+		r.POST("/api/thread/:slug_or_id/details", srv.updateThread)*/
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUser)
 	r.POST("/api/user/:nickname/profile", srv.updateUser)

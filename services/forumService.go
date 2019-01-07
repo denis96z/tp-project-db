@@ -28,3 +28,14 @@ func (srv *Server) createForum(ctx *fasthttp.RequestCtx) {
 		srv.WriteError(ctx, status)
 	}
 }
+
+func (srv *Server) findForum(ctx *fasthttp.RequestCtx) {
+	forum := models.Forum{
+		Slug: ctx.UserValue("slug").(string),
+	}
+	if err := srv.components.ForumRepository.FindForum(&forum); err != nil {
+		srv.WriteError(ctx, err.HttpStatus)
+		return
+	}
+	srv.WriteJSON(ctx, http.StatusOK, &forum)
+}

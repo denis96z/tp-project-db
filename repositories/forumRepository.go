@@ -37,9 +37,15 @@ const (
         )
         RETURNS "query_result"
         AS $$
+        DECLARE _user_ CITEXT;
         DECLARE _existing_ JSON;
         BEGIN
-            IF NOT EXISTS(SELECT * FROM "user" u WHERE u."nickname" = _admin_) THEN
+            SELECT u."nickname"
+            FROM "user" u
+            WHERE u."nickname" = _admin_
+            INTO _user_;
+
+            IF _user_ IS NULL THEN
                 RETURN (404, _existing_);
             END IF;
 
@@ -59,7 +65,7 @@ const (
             END IF;
 
             INSERT INTO "forum"("slug","admin","title")
-            VALUES(_slug_,_admin_,_title_)
+            VALUES(_slug_,_user_,_title_)
             RETURNING json_build_object(
                 'slug', "slug",
                 'user', "admin",
@@ -132,7 +138,7 @@ func (r *ForumRepository) CreateForum(forum *models.Forum, existing *sql.NullStr
 	return status
 }
 
-func (r *UserRepository) FindForum(forum *models.Forum) *errs.Error {
+func (r *ForumRepository) FindForum(forum *models.Forum) *errs.Error {
 	rows, err := r.conn.conn.Query(SelectForumBySlugStatement, &forum.Slug)
 	if err != nil {
 		panic(err)
