@@ -29,7 +29,7 @@ const (
         CREATE OR REPLACE FUNCTION insert_user(
              _nickname_ CITEXT, _email_ CITEXT, _full_name_ TEXT, _about_ TEXT
         )
-        RETURNS "insert_result"
+        RETURNS "query_result"
         AS $$
         DECLARE _existing_ JSON;
         BEGIN
@@ -66,9 +66,56 @@ const (
             RETURN (201, _existing_);
         END;
         $$ LANGUAGE PLPGSQL;
+
+        CREATE OR REPLACE FUNCTION update_user(
+             _nickname_ CITEXT, _email_ CITEXT, _full_name_ TEXT, _about_ TEXT
+        )
+        RETURNS "query_result"
+        AS $$
+        DECLARE _existing_ JSON;
+        BEGIN
+            SELECT json_build_object(
+                'nickname', u."nickname",
+                'email', u."email",
+                'fullname', u."fullname",
+                'about', u."about"
+            )
+            FROM (
+                SELECT u.*
+                FROM "user" u
+                WHERE u."email" = _email_
+            ) u
+            INTO _existing_;
+
+            IF _existing_ IS NOT NULL THEN
+                RETURN (409, _existing_);
+            END IF;
+
+            UPDATE "user" SET
+                "email" = CASE
+                              WHEN _email_ = '' THEN "email"
+                              ELSE _email_
+                          END,
+                "fullname" = replace_if_empty(_full_name_,"fullname"),
+                "about" = replace_if_empty(_about_,"about")
+            WHERE "nickname" = _nickname_
+            RETURNING json_build_object(
+                'nickname', "nickname", 'email', "email",
+                'fullname', "fullname", 'about', "about"
+            ) INTO _existing_;
+
+            IF _existing_ IS NULL THEN
+                RETURN (404, _existing_);
+            END IF;
+
+            RETURN (200, _existing_);
+        END;
+        $$ LANGUAGE PLPGSQL;
     `
 
-	InsertUserStatement = "insert_user_statement"
+	InsertUserStatement           = "insert_user_statement"
+	SelectUserByNicknameStatement = "select_user_by_nickname_statement"
+	UpdateUserStatement           = "update_user_statement"
 )
 
 type UserRepository struct {
@@ -98,13 +145,67 @@ func (r *UserRepository) Init() error {
 		return err
 	}
 
+	err = r.conn.prepareStmt(SelectUserByNicknameStatement, `
+        SELECT u."nickname",u."email",u."fullname",u."about"
+        FROM "user" u
+        WHERE u."nickname" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(UpdateUserStatement, `
+        SELECT * FROM update_user($1,$2,$3,$4);
+    `)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (r *UserRepository) CreateUser(user *models.User, existing *sql.NullString) int {
+func (r *UserRepository) CreateUser(user *models.User, existing *string) int {
 	var status int
 
 	row := r.conn.conn.QueryRow(InsertUserStatement,
+		&user.Nickname, &user.Email, &user.FullName, &user.About,
+	)
+	if err := row.Scan(&status, existing); err != nil {
+		panic(err)
+	}
+
+	return status
+}
+
+func (r *UserRepository) FindUser(user *models.User) *errs.Error {
+	rows, err := r.conn.conn.Query(SelectUserByNicknameStatement, &user.Nickname)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	found := false
+	for rows.Next() {
+		found = true
+		err = rows.Scan(
+			&user.Nickname, &user.Email, &user.FullName, &user.About,
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if !found {
+		return r.notFoundErr
+	}
+
+	return nil
+}
+
+func (r *UserRepository) UpdateUser(user *models.User, existing *sql.NullString) int {
+	var status int
+
+	row := r.conn.conn.QueryRow(UpdateUserStatement,
 		&user.Nickname, &user.Email, &user.FullName, &user.About,
 	)
 	if err := row.Scan(&status, existing); err != nil {

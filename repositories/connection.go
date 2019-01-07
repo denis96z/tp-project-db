@@ -47,10 +47,20 @@ const (
     `
 	CreateTypesQuery = `
         DO $$ BEGIN
-            IF NOT EXISTS (SELECT * FROM "pg_type" WHERE "typname" = 'insert_result') THEN
-                CREATE TYPE "insert_result" AS ("status" INTEGER, "result" JSON);
+            IF NOT EXISTS (SELECT * FROM "pg_type" WHERE "typname" = 'query_result') THEN
+                CREATE TYPE "query_result" AS ("status" INTEGER, "result" JSON);
             END IF;
         END$$;
+    `
+	CreateFunctionsQuery = `
+        CREATE OR REPLACE FUNCTION replace_if_empty(_value_ TEXT, _default_ TEXT)
+        RETURNS TEXT
+        AS $$
+            SELECT CASE
+                WHEN _value_ = '' THEN _default_
+                ELSE _value_
+            END;
+        $$ LANGUAGE SQL;
     `
 )
 
@@ -61,6 +71,11 @@ func (c *Connection) Init() error {
 	}
 
 	err = c.execInit(CreateTypesQuery)
+	if err != nil {
+		return err
+	}
+
+	err = c.execInit(CreateFunctionsQuery)
 	if err != nil {
 		return err
 	}
