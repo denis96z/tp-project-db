@@ -18,6 +18,7 @@ type ServerConfig struct {
 
 type ServerComponents struct {
 	UserRepository   *repositories.UserRepository
+	ForumRepository  *repositories.ForumRepository
 	StatusRepository *repositories.StatusRepository
 }
 
@@ -71,10 +72,10 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
-			/*if string(ctx.Path()) == "/api/forum/create" {
+			if string(ctx.Path()) == "/api/forum/create" {
 				srv.createForum(ctx)
 				return
-			}*/
+			}
 			r.Handler(ctx)
 		}
 	}(r)
