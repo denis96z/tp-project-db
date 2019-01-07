@@ -225,23 +225,11 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 				&postPtr.CreatedTimestamp, &postPtr.Message,
 			)
 		}
-		query += `RETURNING "id";`
+		query += `;`
 
-		rows, err := tx.Query(query, qArgs...)
-		if err != nil {
+		res, err := tx.Exec(query, qArgs...)
+		if err != nil || res.RowsAffected() != int64(n) {
 			panic(err)
-		}
-		defer rows.Close()
-
-		index = 0
-		for rows.Next() {
-			rowPtr := &(*arrPtr)[index]
-			index++
-
-			rowPtr.IsEdited = false
-			if err := rows.Scan(&rowPtr.ID); err != nil {
-				panic(err)
-			}
 		}
 
 		_, err = tx.Exec(IncForumNumPosts, &args.ThreadForum, &n)
