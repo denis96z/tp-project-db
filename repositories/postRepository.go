@@ -20,7 +20,7 @@ const (
 const (
 	CreatePostTableQuery = `
         CREATE TABLE IF NOT EXISTS "post" (
-            "id" BIGSERIAL
+            "id" BIGINT
                 CONSTRAINT "post_id_pk" PRIMARY KEY,
             "parent_id" BIGINT
                 DEFAULT(0)
@@ -43,6 +43,8 @@ const (
                 CONSTRAINT "post_is_edited_not_null" NOT NULL,
             "path" BIGINT ARRAY
         );
+
+        CREATE SEQUENCE IF NOT EXISTS "post_id_seq" START 1;
     `
 
 	PostAttributes = `
@@ -86,9 +88,7 @@ func (r *PostRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(SelectNextPostID, `
-        UPDATE "forum" SET
-            "num_posts" = "num_posts" + $2
-        WHERE "slug" = $1;
+        SELECT nextval('post_id_seq');
     `)
 	if err != nil {
 		return err
@@ -160,13 +160,7 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 		arrPtr := (*[]models.Post)(posts)
 		n := len(*arrPtr)
 
-		var idIndex int64
-		row := tx.QueryRow(`SELECT last_value FROM "post_id_seq";`)
-		if err := row.Scan(&idIndex); err != nil {
-			panic(err)
-		}
-
-		query := `INSERT INTO "post"(
+		query := `INSERT INTO "post"("id",
             "parent_id","author","forum","thread",
             "created_timestamp","message","path"
         )`
@@ -175,10 +169,13 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 		index := 1
 
 		for i := 0; i < n; i++ {
-			idIndex++
-
 			postPtr := &(*arrPtr)[i]
-			postPtr.ID = idIndex
+
+			row := tx.QueryRow(SelectNextPostID)
+			if err := row.Scan(&postPtr.ID); err != nil {
+				panic(err)
+			}
+
 			postPtr.Thread = args.ThreadID
 			postPtr.Forum = args.ThreadForum
 			postPtr.CreatedTimestamp = args.Timestamp
@@ -193,7 +190,7 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 				}
 			}
 
-			row := tx.QueryRow(SelectUserNicknameByNickname, &postPtr.Author)
+			row = tx.QueryRow(SelectUserNicknameByNickname, &postPtr.Author)
 			if row.Scan(&postPtr.Author) != nil {
 				return r.authorNotFoundErr
 			}
@@ -203,20 +200,20 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 			} else {
 				query += ` VALUES`
 			}
-			query += fmt.Sprintf(`($%d,$%d,$%d,$%d,$%d,$%d,(
+			query += fmt.Sprintf(`(%d,$%d,$%d,$%d,$%d,$%d,$%d,(
                 SELECT
                     CASE
-                        WHEN $%d::BIGINT = 0 THEN array_append('{}', %d::BIGINT)
+                        WHEN %d = 0 THEN ARRAY[%d]
                         ELSE (
                             SELECT array_append(p."path", %d::BIGINT)
                             FROM "post" p
-                            WHERE p."id" = $%d::BIGINT
+                            WHERE p."id" = %d
                         )
                     END
                 ))
                 `,
-				index, index+1, index+2, index+3, index+4, index+5,
-				index, idIndex, idIndex, index,
+				postPtr.ID, index, index+1, index+2, index+3, index+4, index+5,
+				postPtr.ParentID, postPtr.ID, postPtr.ID, postPtr.ParentID,
 			)
 			index += 6
 			qArgs = append(qArgs,
