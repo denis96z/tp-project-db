@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
@@ -225,4 +226,200 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 
 		return nil
 	})
+}
+
+type PostsByThreadSearchArgs struct {
+	ThreadID   sql.NullInt64
+	ThreadSlug string
+	Since      int
+	SortType   string
+	Desc       bool
+	Limit      int
+}
+
+func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
+	query := `SELECT ` + PostAttributes + ` FROM "post" p `
+
+	qArgs := make([]interface{}, 0, 1)
+	qArgsIndex := 1
+
+	switch args.SortType {
+	case "flat":
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE p."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND p."id" %s $%d`, eqOp, qArgsIndex)
+		}
+
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY p."id" %s`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+	case "tree":
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = p."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE p."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND p."path" %s (SELECT f."path" FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
+		}
+
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY p."path" %s`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+	case "parent_tree":
+		query += `WHERE p."path"[1] IN (
+            SELECT r."id" FROM "post" r
+        `
+
+		if !args.ThreadID.Valid {
+			query += `JOIN "thread" th ON th."id" = r."thread" WHERE th."slug" = $1`
+			qArgs = append(qArgs, &args.ThreadSlug)
+		} else {
+			query += `WHERE r."thread" = $1`
+			qArgs = append(qArgs, &args.ThreadID.Int64)
+		}
+
+		query += ` AND r."parent_id" = 0`
+
+		if args.Since > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Since)
+
+			var eqOp string
+			if args.Desc {
+				eqOp = "<"
+			} else {
+				eqOp = ">"
+			}
+
+			query += fmt.Sprintf(` AND r."id" %s (SELECT f."path"[1] FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
+		}
+
+		var sortOrd string
+		if args.Desc {
+			sortOrd = `DESC`
+		} else {
+			sortOrd = `ASC`
+		}
+		query += fmt.Sprintf(` ORDER BY r."id" %s`, sortOrd)
+
+		if args.Limit > 0 {
+			qArgsIndex++
+			qArgs = append(qArgs, &args.Limit)
+			query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+		}
+
+		query += `)`
+		if args.Desc {
+			query += ` ORDER BY p."path"[1] DESC, p."path"[2:]`
+		} else {
+			query += ` ORDER BY p."path"`
+		}
+	}
+	query += `;`
+
+	rows, err := r.conn.conn.Query(query, qArgs...)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	posts := make([]models.Post, 0)
+	for rows.Next() {
+		var post models.Post
+		if err := r.scanPost(rows.Scan, &post); err != nil {
+			panic(err)
+		}
+		posts = append(posts, post)
+	}
+
+	if len(posts) == 0 {
+		var exists bool
+		var row *pgx.Row
+
+		if args.ThreadID.Valid {
+			row = r.conn.conn.QueryRow(SelectThreadExistsByIDStatement, &args.ThreadID.Int64)
+		} else {
+			row = r.conn.conn.QueryRow(SelectThreadExistsBySlugStatement, &args.ThreadSlug)
+		}
+		if err = row.Scan(&exists); !exists {
+			return nil, r.notFoundErr
+		}
+	}
+
+	return (*models.Posts)(&posts), nil
+}
+
+type ScanFunc func(...interface{}) error
+
+const (
+	PostAttributes = `
+        p."id",p."parent_id",p."author",
+        p."forum",p."thread",p."message",
+        p."created_timestamp",p."is_edited"
+    `
+)
+
+func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
+	err := f(
+		&post.ID, &post.ParentID, &post.Author,
+		&post.Forum, &post.Thread, &post.Message,
+		&post.CreatedTimestamp, &post.IsEdited,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }

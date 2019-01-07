@@ -109,9 +109,11 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertThreadStatement       = "insert_thread_statement"
-	SelectThreadByIDStatement   = "select_thread_by_id_statement"
-	SelectThreadBySlugStatement = "select_thread_by_slug_statement"
+	InsertThreadStatement             = "insert_thread_statement"
+	SelectThreadExistsByIDStatement   = "select_thread_exists_by_id_statement"
+	SelectThreadExistsBySlugStatement = "select_thread_exists_by_slug_statement"
+	SelectThreadByIDStatement         = "select_thread_by_id_statement"
+	SelectThreadBySlugStatement       = "select_thread_by_slug_statement"
 )
 
 type ThreadRepository struct {
@@ -140,6 +142,20 @@ func (r *ThreadRepository) Init() error {
 
 	err = r.conn.prepareStmt(InsertThreadStatement, `
         SELECT * FROM insert_thread($1,$2,$3,$4,$5,$6);
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectThreadExistsByIDStatement, `
+        SELECT EXISTS(SELECT * FROM "thread" WHERE "id" = $1);
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectThreadExistsBySlugStatement, `
+        SELECT EXISTS(SELECT * FROM "thread" WHERE "slug" = $1);
     `)
 	if err != nil {
 		return err
