@@ -32,6 +32,16 @@ const (
 
         CREATE INDEX IF NOT EXISTS "forum_admin_idx" ON "forum"("admin");
 
+        CREATE TABLE IF NOT EXISTS "forum_user" (
+            "forum" CITEXT COLLATE "ucs_basic"
+                CONSTRAINT "forum_user_forum_not_null" NOT NULL
+                CONSTRAINT "forum_user_forum_fk" REFERENCES "forum"("slug"),
+            "user" CITEXT COLLATE "ucs_basic"
+                CONSTRAINT "forum_user_user_not_null" NOT NULL
+                CONSTRAINT "forum_user_user_fk" REFERENCES "user"("nickname"),
+            CONSTRAINT "forum_user_pk" PRIMARY KEY("user","forum")
+        );
+
         CREATE OR REPLACE FUNCTION insert_forum(
             _slug_ CITEXT, _admin_ CITEXT, _title_ TEXT
         )

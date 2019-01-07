@@ -100,6 +100,10 @@ const (
                 "num_threads" = "num_threads" + 1
             WHERE "slug" = _forum_slug_;
 
+            INSERT INTO "forum_user"("forum","user")
+            VALUES(_forum_slug_,_author_nickname_)
+            ON CONFLICT DO NOTHING;
+
             RETURN (201, _existing_);
         END;
         $$ LANGUAGE PLPGSQL;
