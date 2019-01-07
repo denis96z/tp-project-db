@@ -46,23 +46,6 @@ const (
 
         CREATE INDEX IF NOT EXISTS "forum_user_user_idx" ON "forum_user"("user");
         CREATE INDEX IF NOT EXISTS "forum_user_forum_idx" ON "forum_user"("forum");
-
-        CREATE OR REPLACE FUNCTION forum_insert_trigger_func()
-        RETURNS TRIGGER AS
-        $$
-        BEGIN
-            --INSERT INTO "forum_user"("user","forum")
-            --VALUES(NEW."admin",NEW."slug") ON CONFLICT DO NOTHING;
-            RETURN NEW;
-        END;
-        $$ LANGUAGE PLPGSQL;
-
-        DROP TRIGGER IF EXISTS "forum_insert_trigger" ON "forum";
-
-        CREATE TRIGGER "forum_insert_trigger"
-        AFTER INSERT ON "forum"
-        FOR EACH ROW
-        EXECUTE PROCEDURE forum_insert_trigger_func();
     `
 
 	ForumAttributes = `

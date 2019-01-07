@@ -191,7 +191,7 @@ func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models
 
 		query += fmt.Sprintf(`AND u."nickname" %s $%d`, eqOp, qArgsIndex)
 	}
-	query += ` ORDER BY lower(u."nickname") `
+	query += ` ORDER BY u."nickname" `
 	if args.Desc {
 		query += `DESC`
 	} else {

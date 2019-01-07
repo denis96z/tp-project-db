@@ -44,6 +44,11 @@ const (
             "path" BIGINT ARRAY
         );
 
+        CREATE INDEX IF NOT EXISTS "post_parent_id_idx" ON "post"("parent_id");
+        CREATE INDEX IF NOT EXISTS "post_thread_index" ON "post"("thread");
+        CREATE INDEX IF NOT EXISTS "post_forum_index" ON "post"("forum");
+        CREATE INDEX IF NOT EXISTS "post_author_index" ON "post"("author");
+
         CREATE SEQUENCE IF NOT EXISTS "post_id_seq" START 1;
     `
 
