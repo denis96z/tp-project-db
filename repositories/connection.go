@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	MaxConnections = 16
+	MaxConnections = 32
 )
 
 type Connection struct {
@@ -42,22 +42,11 @@ func (c *Connection) Close() error {
 }
 
 const (
-	NotFoundErrorText = "no rows in result set"
-)
-
-const (
 	CreateExtensionsQuery = `
         CREATE EXTENSION IF NOT EXISTS "citext";
     `
-	CreateFunctionsQuery = `
-        CREATE OR REPLACE FUNCTION update_value(old_value TEXT, new_value TEXT)
-        RETURNS TEXT
-        AS $$
-            SELECT CASE
-                WHEN new_value = '' THEN old_value
-                ELSE new_value
-            END;
-        $$ LANGUAGE SQL;
+	CreateTypesQuery = `
+        CREATE TYPE "insert_result" AS ("status" INTEGER, "result" JSON);
     `
 )
 
@@ -67,7 +56,7 @@ func (c *Connection) Init() error {
 		return err
 	}
 
-	err = c.execInit(CreateFunctionsQuery)
+	err = c.execInit(CreateTypesQuery)
 	if err != nil {
 		return err
 	}

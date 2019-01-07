@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"tp-project-db/config"
-	"tp-project-db/models"
 	"tp-project-db/repositories"
 	"tp-project-db/services"
 )
@@ -25,18 +24,6 @@ func main() {
 	userRepository := repositories.NewUserRepository(conn)
 	handleErr(userRepository.Init())
 
-	forumRepository := repositories.NewForumRepository(conn)
-	handleErr(forumRepository.Init())
-
-	threadRepository := repositories.NewThreadRepository(conn)
-	handleErr(threadRepository.Init())
-
-	postRepository := repositories.NewPostRepository(conn)
-	handleErr(postRepository.Init())
-
-	voteRepository := repositories.NewVoteRepository(conn)
-	handleErr(voteRepository.Init())
-
 	statusRepository := repositories.NewStatusRepository(conn)
 	handleErr(statusRepository.Init())
 
@@ -46,24 +33,7 @@ func main() {
 			Port: os.Getenv("SERVER_PORT"),
 		},
 		services.ServerComponents{
-			UserValidator:       models.NewUserValidator(),
-			UserUpdateValidator: models.NewUserUpdateValidator(),
-			UserRepository:      userRepository,
-
-			ForumValidator:  models.NewForumValidator(),
-			ForumRepository: forumRepository,
-
-			ThreadValidator:       models.NewThreadValidator(),
-			ThreadUpdateValidator: models.NewThreadUpdateValidator(),
-			ThreadRepository:      threadRepository,
-
-			PostValidator:       models.NewPostValidator(),
-			PostUpdateValidator: models.NewPostUpdateValidator(),
-			PostRepository:      postRepository,
-
-			VoteValidator:  models.NewVoteValidator(),
-			VoteRepository: voteRepository,
-
+			UserRepository:   userRepository,
 			StatusRepository: statusRepository,
 		},
 	)

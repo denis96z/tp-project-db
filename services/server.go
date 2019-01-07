@@ -6,7 +6,6 @@ import (
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"tp-project-db/errs"
-	"tp-project-db/models"
 	"tp-project-db/repositories"
 )
 
@@ -20,24 +19,7 @@ type ServerConfig struct {
 }
 
 type ServerComponents struct {
-	UserValidator       *models.UserValidator
-	UserUpdateValidator *models.UserUpdateValidator
-	UserRepository      *repositories.UserRepository
-
-	ForumValidator  *models.ForumValidator
-	ForumRepository *repositories.ForumRepository
-
-	ThreadValidator       *models.ThreadValidator
-	ThreadUpdateValidator *models.ThreadUpdateValidator
-	ThreadRepository      *repositories.ThreadRepository
-
-	PostValidator       *models.PostValidator
-	PostUpdateValidator *models.PostUpdateValidator
-	PostRepository      *repositories.PostRepository
-
-	VoteValidator  *models.VoteValidator
-	VoteRepository *repositories.VoteRepository
-
+	UserRepository   *repositories.UserRepository
 	StatusRepository *repositories.StatusRepository
 }
 
@@ -86,10 +68,10 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
-			if string(ctx.Path()) == "/api/forum/create" {
+			/*if string(ctx.Path()) == "/api/forum/create" {
 				srv.createForum(ctx)
 				return
-			}
+			}*/
 			r.Handler(ctx)
 		}
 	}(r)
