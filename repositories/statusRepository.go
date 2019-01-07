@@ -6,7 +6,40 @@ import (
 )
 
 const (
-	SelectStatus = "select_status"
+	CreateStatusTableQuery = `
+        CREATE TABLE IF NOT EXISTS "service_status"(
+            "num_users" INTEGER,
+            "num_forums" INTEGER,
+            "num_threads" INTEGER,
+            "num_posts" BIGINT
+        );
+
+        CREATE OR REPLACE FUNCTION init_status_table()
+        RETURNS VOID
+        AS $$
+        BEGIN
+            IF (SELECT COUNT(*) FROM "service_status") = 0 THEN
+                INSERT INTO "service_status"(
+                    "num_users","num_forums","num_threads","num_posts"
+                ) VALUES(0,0,0,0);
+            END IF;
+        END;
+        $$ LANGUAGE PLPGSQL;
+
+        CREATE OR REPLACE FUNCTION clear_database()
+        RETURNS VOID
+        AS $$
+        BEGIN
+           TRUNCATE TABLE "user" CASCADE;
+           UPDATE "service_status" SET (
+               "num_users","num_forums","num_threads","num_posts"
+           ) = (0,0,0,0);
+        END;
+        $$ LANGUAGE PLPGSQL;
+    `
+
+	SelectStatus  = "select_status"
+	ClearDatabase = "clear_database"
 )
 
 type StatusRepository struct {
@@ -20,13 +53,34 @@ func NewStatusRepository(conn *Connection) *StatusRepository {
 }
 
 func (r *StatusRepository) Init() error {
-	err := r.conn.prepareStmt(SelectStatus, `
-        SELECT
-            (SELECT COUNT(*) FROM "user")::INTEGER AS "num_users",
-            (SELECT COUNT(*) FROM "forum")::INTEGER AS "num_forums",
-            (SELECT COUNT(*) FROM "thread")::INTEGER AS "num_thread",
-            (SELECT COUNT(*) FROM "post")::BIGINT AS "num_posts";
+	err := r.conn.execInit(CreateStatusTableQuery)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.execInit(`
+        DO $$ BEGIN
+           PERFORM init_status_table();
+        END $$;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectStatus, `
+        SELECT st."num_users", st."num_forums",
+            st."num_threads", st."num_posts"
+        FROM "service_status" st;
 	`)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(ClearDatabase, `
+        DO $$ BEGIN
+           PERFORM clear_database();
+        END $$;
+    `)
 	if err != nil {
 		return err
 	}

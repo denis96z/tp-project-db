@@ -9,11 +9,17 @@ func Load() {
 	setEnvVar("SERVER_HOST", "0.0.0.0")
 	setEnvVar("SERVER_PORT", "5000")
 
-	setEnvVar("PGHOST", "127.0.0.1")
+	/*setEnvVar("PGHOST", "127.0.0.1")
 	setEnvVar("PGPORT", "5432")
 	setEnvVar("PGDATABASE", "forum")
 	setEnvVar("PGUSER", "postgres")
-	setEnvVar("PGPASSWORD", consts.EmptyString)
+	setEnvVar("PGPASSWORD", consts.EmptyString)*/
+
+	setEnvVar("PGHOST", "127.0.0.1")
+	setEnvVar("PGPORT", "5432")
+	setEnvVar("PGDATABASE", "forum")
+	setEnvVar("PGUSER", "user")
+	setEnvVar("PGPASSWORD", "password")
 }
 
 func getEnvVar(name, defaultValue string) string {

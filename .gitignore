@@ -1,3 +1,7 @@
 ### IDE ###
 /.idea/
 fill.sh
+*.out
+*.test
+*_test.go
+/service

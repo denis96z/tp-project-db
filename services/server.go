@@ -4,7 +4,9 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 	"net/http"
+	"net/http/pprof"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
@@ -66,6 +68,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 
 	r := router.New()
 
+	r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))
 	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForumBySlug)
 	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
