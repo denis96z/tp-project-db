@@ -5,6 +5,10 @@ import (
 	"tp-project-db/errs"
 )
 
+const (
+	MaxConnections = 16
+)
+
 type Connection struct {
 	conn   *pgx.ConnPool
 	config pgx.ConnConfig
@@ -25,7 +29,8 @@ func (c *Connection) Open() error {
 	var err error
 	c.conn, err = pgx.NewConnPool(
 		pgx.ConnPoolConfig{
-			ConnConfig: c.config,
+			ConnConfig:     c.config,
+			MaxConnections: MaxConnections,
 		},
 	)
 	return err
