@@ -27,23 +27,26 @@ const (
         CREATE UNIQUE INDEX IF NOT EXISTS "user_email_idx" ON "user"("email");
 
         CREATE OR REPLACE FUNCTION insert_user(
-             _nickname_ TEXT, _email_ TEXT, _full_name_ TEXT, _about_ TEXT
+             _nickname_ CITEXT, _email_ CITEXT, _full_name_ TEXT, _about_ TEXT
         )
         RETURNS "insert_result"
         AS $$
         DECLARE _existing_ JSON;
         BEGIN
             SELECT json_agg(json_build_object(
-                u."nickname",u."email",u."fullname",u."about"
+                'nickname', u."nickname",
+                'email', u."email",
+                'fullname', u."fullname",
+                'about', u."about"
             ))
             FROM (
                 SELECT u.*
                 FROM "user" u
-                WHERE u.nickname = _nickname_
+                WHERE u."nickname" = _nickname_
                 UNION
                 SELECT u.*
                 FROM "user" u
-                WHERE u.email = _email_
+                WHERE u."email" = _email_
             ) u
             INTO _existing_;
 
@@ -52,7 +55,11 @@ const (
             END IF;
 
             INSERT INTO "user"("nickname","email","fullname","about")
-            VALUES(_nickname_,_email_,_full_name_,_about_);
+            VALUES(_nickname_,_email_,_full_name_,_about_)
+            RETURNING json_build_object(
+                'nickname', "nickname", 'email', "email",
+                'fullname', "fullname", 'about', "about"
+            ) INTO _existing_;
 
             PERFORM inc_num_users();
 

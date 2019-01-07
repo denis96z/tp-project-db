@@ -46,7 +46,11 @@ const (
         CREATE EXTENSION IF NOT EXISTS "citext";
     `
 	CreateTypesQuery = `
-        CREATE TYPE "insert_result" AS ("status" INTEGER, "result" JSON);
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT * FROM "pg_type" WHERE "typname" = 'insert_result') THEN
+                CREATE TYPE "insert_result" AS ("status" INTEGER, "result" JSON);
+            END IF;
+        END$$;
     `
 )
 
