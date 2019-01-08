@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
-	"log"
-	"time"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -375,8 +373,6 @@ type PostsByThreadSearchArgs struct {
 }
 
 func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
-	t := time.Now()
-
 	query := `SELECT ` + PostAttributes + ` FROM "post" p `
 
 	qArgs := make([]interface{}, 0, 1)
@@ -536,13 +532,6 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		if err = row.Scan(&exists); !exists {
 			return nil, r.notFoundErr
 		}
-	}
-
-	t2 := time.Now()
-	dt := t2.Sub(t)
-
-	if dt > 100 * time.Millisecond {
-		log.Println("Time: ", dt, "Params: ", args, "Query: ", query, "Args: ", qArgs)
 	}
 
 	return (*models.Posts)(&posts), nil
