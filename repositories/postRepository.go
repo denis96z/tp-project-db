@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/go-openapi/strfmt"
 	"github.com/jackc/pgx"
+	"log"
+	"time"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -41,7 +43,9 @@ const (
             "is_edited" BOOLEAN
                 DEFAULT(FALSE)
                 CONSTRAINT "post_is_edited_not_null" NOT NULL,
-            "path" BIGINT ARRAY
+            "path" BIGINT ARRAY,
+            "path_root" BIGINT
+                CONSTRAINT "post_parent_root_nullable" NULL
         );
 
         CREATE SEQUENCE IF NOT EXISTS "post_id_seq" START 1;
@@ -49,6 +53,7 @@ const (
         CREATE INDEX IF NOT EXISTS "post_author_idx" ON "post"("author");
         CREATE INDEX IF NOT EXISTS "post_forum_idx" ON "post"("forum");
         CREATE INDEX IF NOT EXISTS "post_thread_idx" ON "post"("thread");
+        CREATE INDEX IF NOT EXISTS "post_path_root_idx" ON "post"("path_root");
     `
 
 	SelectNextPostIDStatement              = "select_next_post_id_statement"
@@ -168,7 +173,7 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
 
 		query := `INSERT INTO "post"("id",
             "parent_id","author","forum","thread",
-            "created_timestamp","message","path"
+            "created_timestamp","message","path","path_root"
         )`
 
 		qArgs := make([]interface{}, 0, n*7)
@@ -216,10 +221,21 @@ func (r *PostRepository) CreatePosts(posts *models.Posts, args *CreatePostArgs) 
                             WHERE p."id" = %d
                         )
                     END
+                ), (
+                SELECT
+                    CASE
+                        WHEN %d = 0 THEN %d
+                        ELSE (
+                            SELECT p."path_root"
+                            FROM "post" p
+                            WHERE p."id" = %d
+                        )
+                    END
                 ))
                 `,
 				postPtr.ID, index, index+1, index+2, index+3, index+4, index+5,
 				postPtr.ParentID, postPtr.ID, postPtr.ID, postPtr.ParentID,
+				postPtr.ParentID, postPtr.ID, postPtr.ParentID,
 			)
 			index += 6
 			qArgs = append(qArgs,
@@ -359,6 +375,8 @@ type PostsByThreadSearchArgs struct {
 }
 
 func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*models.Posts, *errs.Error) {
+	t := time.Now()
+
 	query := `SELECT ` + PostAttributes + ` FROM "post" p `
 
 	qArgs := make([]interface{}, 0, 1)
@@ -440,7 +458,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		}
 
 	case "parent_tree":
-		query += `WHERE p."path"[1] IN (
+		query += `WHERE p."path_root" IN (
             SELECT r."id" FROM "post" r
         `
 
@@ -465,7 +483,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 				eqOp = ">"
 			}
 
-			query += fmt.Sprintf(` AND r."id" %s (SELECT f."path"[1] FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
+			query += fmt.Sprintf(` AND r."id" %s (SELECT f."path_root" FROM "post" f WHERE f."id" = $%d)`, eqOp, qArgsIndex)
 		}
 
 		var sortOrd string
@@ -484,7 +502,7 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 
 		query += `)`
 		if args.Desc {
-			query += ` ORDER BY p."path"[1] DESC, p."path"[2:]`
+			query += ` ORDER BY p."path_root" DESC, p."path"[2:]`
 		} else {
 			query += ` ORDER BY p."path"`
 		}
@@ -518,6 +536,13 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 		if err = row.Scan(&exists); !exists {
 			return nil, r.notFoundErr
 		}
+	}
+
+	t2 := time.Now()
+	dt := t2.Sub(t)
+
+	if dt > 100 * time.Millisecond {
+		log.Println("Time: ", dt, "Params: ", args, "Query: ", query, "Args: ", qArgs)
 	}
 
 	return (*models.Posts)(&posts), nil

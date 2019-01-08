@@ -42,6 +42,8 @@ const (
             CONSTRAINT "forum_user_pk" PRIMARY KEY("user","forum")
         );
 
+        CREATE INDEX IF NOT EXISTS "forum_user_forum_idx" ON "forum_user"("forum");
+
         CREATE OR REPLACE FUNCTION insert_forum(
             _slug_ CITEXT, _admin_ CITEXT, _title_ TEXT
         )

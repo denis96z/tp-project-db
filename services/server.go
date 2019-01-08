@@ -4,8 +4,10 @@ import (
 	"github.com/fasthttp/router"
 	"github.com/mailru/easyjson"
 	"github.com/valyala/fasthttp"
+	"log"
 	"net/http"
 	"sync"
+	"time"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 	"tp-project-db/repositories"
@@ -55,20 +57,19 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r := router.New()
 	components.StatusRepository.GetStatus(&srv.status)
 
-	/*r.GET("/debug/pprof/profile", fasthttpadaptor.NewFastHTTPHandlerFunc(pprof.Profile))*/
 	r.POST("/api/forum/:slug/create", srv.createThread)
-	r.GET("/api/forum/:slug/details", srv.findForum)
-	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
-	r.GET("/api/forum/:slug/users", srv.findUsersByForum)
-	r.GET("/api/post/:id/details", srv.findPost)
+	r.GET("/api/forum/:slug/details", withTM("findForum", srv.findForum))
+	r.GET("/api/forum/:slug/threads", withTM("findThreadsByForum", srv.findThreadsByForum))
+	r.GET("/api/forum/:slug/users", withTM("findUsersByForum", srv.findUsersByForum))
+	r.GET("/api/post/:id/details", withTM("findPost",srv.findPost))
 	r.POST("/api/post/:id/details", srv.updatePost)
 	r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
 	r.POST("/api/thread/:slug_or_id/vote", srv.addVote)
-	r.GET("/api/thread/:slug_or_id/details", srv.findThread)
+	r.GET("/api/thread/:slug_or_id/details", withTM("findThread", srv.findThread))
 	r.GET("/api/thread/:slug_or_id/posts", srv.findPostsByThread)
 	r.POST("/api/thread/:slug_or_id/details", srv.updateThread)
 	r.POST("/api/user/:nickname/create", srv.createUser)
-	r.GET("/api/user/:nickname/profile", srv.findUser)
+	r.GET("/api/user/:nickname/profile", withTM("findUser",srv.findUser))
 	r.POST("/api/user/:nickname/profile", srv.updateUser)
 	r.POST("/api/service/clear", srv.clearDatabase)
 	r.GET("/api/service/status", srv.getStatus)
@@ -92,4 +93,16 @@ func (srv *Server) Run() error {
 
 func (srv *Server) Shutdown() error {
 	return nil //TODO
+}
+
+func withTM(name string, h fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		t1 := time.Now()
+		h(ctx)
+		t2 := time.Now()
+		dt := t2.Sub(t1)
+		if dt > time.Millisecond  * 100 {
+			log.Println(name, ":", t2.Sub(t1))
+		}
+	}
 }
