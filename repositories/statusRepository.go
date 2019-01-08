@@ -5,19 +5,6 @@ import (
 )
 
 const (
-	InitServiceStatus = `
-        CREATE OR REPLACE FUNCTION clear_database()
-        RETURNS VOID
-        AS $$
-        BEGIN
-           TRUNCATE TABLE "user" CASCADE;
-           UPDATE "service_status" SET (
-               "num_users","num_forums","num_threads","num_posts"
-           ) = (0,0,0,0);
-        END;
-        $$ LANGUAGE PLPGSQL;
-    `
-
 	SelectStatus  = "select_status"
 	ClearDatabase = "clear_database"
 )
@@ -33,12 +20,7 @@ func NewStatusRepository(conn *Connection) *StatusRepository {
 }
 
 func (r *StatusRepository) Init() error {
-	err := r.conn.execInit(InitServiceStatus)
-	if err != nil {
-		return err
-	}
-
-	err = r.conn.prepareStmt(SelectStatus, `
+	err := r.conn.prepareStmt(SelectStatus, `
         SELECT
             (SELECT COUNT(*) FROM "user" u) AS "num_users",
             0 AS "num_forums",
@@ -50,9 +32,7 @@ func (r *StatusRepository) Init() error {
 	}
 
 	err = r.conn.prepareStmt(ClearDatabase, `
-        DO $$ BEGIN
-           PERFORM clear_database();
-        END $$;
+        TRUNCATE TABLE "user" CASCADE;
     `)
 	if err != nil {
 		return err

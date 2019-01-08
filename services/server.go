@@ -59,7 +59,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/forum/:slug/create", srv.createThread)
 	r.GET("/api/forum/:slug/details", srv.findForum)
 	r.GET("/api/forum/:slug/threads", srv.findThreadsByForum)
-	/*r.GET("/api/forum/:slug/users", srv.findUsersByForum)*/
+	r.GET("/api/forum/:slug/users", srv.findUsersByForum)
 	r.GET("/api/post/:id/details", srv.findPost)
 	r.POST("/api/post/:id/details", srv.updatePost)
 	r.POST("/api/thread/:slug_or_id/create", srv.createPosts)
@@ -70,7 +70,7 @@ func NewServer(config ServerConfig, components ServerComponents) *Server {
 	r.POST("/api/user/:nickname/create", srv.createUser)
 	r.GET("/api/user/:nickname/profile", srv.findUser)
 	r.POST("/api/user/:nickname/profile", srv.updateUser)
-	/*r.POST("/api/service/clear", srv.deleteAllUsers)*/
+	r.POST("/api/service/clear", srv.clearDatabase)
 	r.GET("/api/service/status", srv.getStatus)
 
 	srv.handler = func(r *router.Router) fasthttp.RequestHandler {
