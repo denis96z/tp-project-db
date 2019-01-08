@@ -2,6 +2,8 @@ package repositories
 
 import (
 	"database/sql"
+	"fmt"
+	"tp-project-db/consts"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -208,6 +210,76 @@ func (r *UserRepository) FindUser(user *models.User) *errs.Error {
 	return nil
 }
 
+type UsersByForumSearchArgs struct {
+	Forum string
+	Since string
+	Desc  bool
+	Limit int
+}
+
+func (r *UserRepository) FindUsersByForum(args *UsersByForumSearchArgs) (*models.Users, *errs.Error) {
+	query := `
+        SELECT ` + UserAttributes + `
+        FROM "user" u
+        JOIN "forum_user" fu ON u."nickname" = fu."user"
+        WHERE fu."forum" = $1
+    `
+	qArgs := []interface{}{args.Forum}
+	qArgsIndex := 1
+
+	if args.Since != consts.EmptyString {
+		qArgs = append(qArgs, args.Since)
+		qArgsIndex++
+
+		var eqOp string
+		if args.Desc {
+			eqOp = "<"
+		} else {
+			eqOp = ">"
+		}
+
+		query += fmt.Sprintf(`AND u."nickname" %s $%d`, eqOp, qArgsIndex)
+	}
+	query += ` ORDER BY lower(u."nickname") `
+	if args.Desc {
+		query += `DESC`
+	} else {
+		query += `ASC`
+	}
+	if args.Limit != 0 {
+		qArgs = append(qArgs, args.Limit)
+		qArgsIndex++
+		query += fmt.Sprintf(` LIMIT $%d`, qArgsIndex)
+	}
+	query += `;`
+
+	rows, err := r.conn.conn.Query(query, qArgs...)
+	if err != nil {
+		return nil, r.notFoundErr
+	}
+	defer rows.Close()
+
+	users := make([]models.User, 0)
+	for rows.Next() {
+		var user models.User
+		err = r.scanUser(rows.Scan, &user)
+		if err != nil {
+			panic(err)
+		}
+		users = append(users, user)
+	}
+
+	if len(users) == 0 {
+		var exists bool
+		row := r.conn.conn.QueryRow(SelectForumExistsBySlugStatement, &args.Forum)
+		if _ = row.Scan(&exists); !exists {
+			return nil, r.notFoundErr
+		}
+	}
+
+	return (*models.Users)(&users), nil
+}
+
 func (r *UserRepository) UpdateUser(user *models.User, existing *sql.NullString) int {
 	var status int
 
@@ -219,4 +291,10 @@ func (r *UserRepository) UpdateUser(user *models.User, existing *sql.NullString)
 	}
 
 	return status
+}
+
+func (r *UserRepository) scanUser(f ScanFunc, user *models.User) error {
+	return f(
+		&user.Nickname, &user.FullName, &user.Email, &user.About,
+	)
 }
