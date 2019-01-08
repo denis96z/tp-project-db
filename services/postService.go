@@ -6,6 +6,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 	"tp-project-db/consts"
 	"tp-project-db/models"
@@ -51,6 +52,39 @@ func (srv *Server) createPosts(ctx *fasthttp.RequestCtx) {
 	srv.rwMtx.Unlock()
 
 	srv.WriteJSON(ctx, http.StatusCreated, &posts)
+}
+
+func (srv *Server) findPost(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.ParseInt(ctx.UserValue("id").(string), 10, 64)
+	postMap := make(map[string]interface{}, 0)
+
+	post := models.Post{
+		ID: id,
+	}
+	postMap["post"] = &post
+
+	attrs := strings.Split(string(ctx.QueryArgs().Peek("related")), ",")
+	for _, attr := range attrs {
+		switch string(attr) {
+		case "forum":
+			var forum models.Forum
+			postMap["forum"] = &forum
+		case "thread":
+			var thread models.Thread
+			postMap["thread"] = &thread
+		case "user":
+			var user models.User
+			postMap["author"] = &user
+		}
+	}
+
+	postPtr := (*models.PostFull)(&postMap)
+	if err := srv.components.PostRepository.FindFullPost(postPtr); err != nil {
+		srv.WriteError(ctx, err.HttpStatus)
+		return
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, postPtr)
 }
 
 func (srv *Server) findPostsByThread(ctx *fasthttp.RequestCtx) {
