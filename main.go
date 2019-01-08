@@ -33,6 +33,9 @@ func main() {
 	postRepository := repositories.NewPostRepository(conn)
 	handleErr(postRepository.Init())
 
+	voteRepository := repositories.NewVoteRepository(conn)
+	handleErr(voteRepository.Init())
+
 	statusRepository := repositories.NewStatusRepository(conn)
 	handleErr(statusRepository.Init())
 
@@ -46,6 +49,7 @@ func main() {
 			ForumRepository:  forumRepository,
 			ThreadRepository: threadRepository,
 			PostRepository:   postRepository,
+			VoteRepository:   voteRepository,
 			StatusRepository: statusRepository,
 		},
 	)

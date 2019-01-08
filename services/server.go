@@ -21,6 +21,7 @@ type ServerComponents struct {
 	ForumRepository  *repositories.ForumRepository
 	ThreadRepository *repositories.ThreadRepository
 	PostRepository   *repositories.PostRepository
+	VoteRepository   *repositories.VoteRepository
 	StatusRepository *repositories.StatusRepository
 }
 
