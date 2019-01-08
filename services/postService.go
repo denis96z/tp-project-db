@@ -127,3 +127,28 @@ func (srv *Server) findPostsByThread(ctx *fasthttp.RequestCtx) {
 
 	srv.WriteJSON(ctx, http.StatusOK, posts)
 }
+
+func (srv *Server) updatePost(ctx *fasthttp.RequestCtx) {
+	id, _ := strconv.ParseInt(ctx.UserValue("id").(string), 10, 64)
+	post := models.Post{
+		ID: id,
+	}
+
+	var postUpdate models.PostUpdate
+	srv.ReadBody(ctx, &postUpdate)
+
+	if postUpdate.Message == consts.EmptyString {
+		if err := srv.components.PostRepository.FindPost(&post); err != nil {
+			srv.WriteError(ctx, err.HttpStatus)
+			return
+		}
+	} else {
+		post.Message = postUpdate.Message
+		if err := srv.components.PostRepository.UpdatePost(&post); err != nil {
+			srv.WriteError(ctx, err.HttpStatus)
+			return
+		}
+	}
+
+	srv.WriteJSON(ctx, http.StatusOK, &post)
+}

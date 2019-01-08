@@ -52,9 +52,12 @@ const (
     `
 
 	SelectNextPostIDStatement              = "select_next_post_id_statement"
+	SelectPostByIDStatement                = "select_post_by_id_statement"
+	SelectPostExistsByIDStatement          = "select_post_exists_by_id_statement"
 	SelectPostExistsByIDAndThreadStatement = "select_post_exists_by_id_and_thread_statement"
 	UpdateForumNumPostsStatement           = "update_forum_num_posts_statement"
 	InsertForumUserStatement               = "insert_forum_user_statement"
+	UpdatePostByIDStatement                = "update_post_by_id_statement"
 )
 
 type PostRepository struct {
@@ -90,6 +93,22 @@ func (r *PostRepository) Init() error {
 		return err
 	}
 
+	err = r.conn.prepareStmt(SelectPostByIDStatement, `
+        SELECT `+PostAttributes+`
+        FROM "post" p
+        WHERE p."id" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectPostExistsByIDStatement, `
+        SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1);
+    `)
+	if err != nil {
+		return err
+	}
+
 	err = r.conn.prepareStmt(SelectPostExistsByIDAndThreadStatement, `
         SELECT EXISTS(SELECT * FROM "post" p WHERE p."id" = $1 AND p."thread" = $2);
     `)
@@ -109,6 +128,24 @@ func (r *PostRepository) Init() error {
 	err = r.conn.prepareStmt(InsertForumUserStatement, `
         INSERT INTO "forum_user"("user","forum")
         VALUES($1,$2) ON CONFLICT DO NOTHING;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(UpdatePostByIDStatement, `
+        UPDATE "post" SET
+            "message" = $2,
+            "is_edited" =
+                CASE
+                    WHEN "message" != $2 THEN TRUE
+                    ELSE "is_edited"
+                END
+        WHERE "id" = $1
+        RETURNING
+            "id","parent_id","author",
+            "forum","thread","message",
+            "created_timestamp","is_edited";
     `)
 	if err != nil {
 		return err
@@ -243,6 +280,14 @@ const (
     `
 	UserAttributes = `u."nickname",u."fullname",u."email",u."about"`
 )
+
+func (r *PostRepository) FindPost(post *models.Post) *errs.Error {
+	row := r.conn.conn.QueryRow(SelectPostByIDStatement, &post.ID)
+	if err := r.scanPost(row.Scan, post); err != nil {
+		return r.notFoundErr
+	}
+	return nil
+}
 
 func (r *PostRepository) FindFullPost(post *models.PostFull) *errs.Error {
 	mapPtr := (*map[string]interface{})(post)
@@ -479,6 +524,25 @@ func (r *PostRepository) FindPostsByThread(args *PostsByThreadSearchArgs) (*mode
 }
 
 type ScanFunc func(...interface{}) error
+
+func (r *PostRepository) CheckPostExists(id int64) *errs.Error {
+	var exists bool
+	row := r.conn.conn.QueryRow(SelectPostExistsByIDStatement, &id)
+	if _ = row.Scan(&exists); !exists {
+		return r.notFoundErr
+	}
+	return nil
+}
+
+func (r *PostRepository) UpdatePost(post *models.Post) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(UpdatePostByIDStatement, &post.ID, &post.Message)
+		if err := r.scanPost(row.Scan, post); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
+}
 
 func (r *PostRepository) scanPost(f ScanFunc, post *models.Post) error {
 	err := f(

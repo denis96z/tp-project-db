@@ -26,6 +26,10 @@ func (ns *NullString) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+func (ns *NullString) Scan(value interface{}) error {
+	return (*sql.NullString)(ns).Scan(value)
+}
+
 type NullTimestamp struct {
 	Valid     bool
 	Timestamp strfmt.DateTime
@@ -50,5 +54,10 @@ func (t *NullTimestamp) UnmarshalJSON(b []byte) error {
 	t.Timestamp, _ = strfmt.ParseDateTime(tStr) //TODO
 	t.Valid = true
 
+	return nil
+}
+
+func (t *NullTimestamp) Scan(value interface{}) error {
+	t.Valid = t.Timestamp.Scan(value) == nil
 	return nil
 }

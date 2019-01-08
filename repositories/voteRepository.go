@@ -78,8 +78,8 @@ const (
                     FROM "thread" WHERE "id" = _thread_id_
                     INTO _thread_;
                 ELSE
-                    INSERT INTO "vote"("user","thread","voice")
-                    VALUES(_user_,_thread_id_,_voice_);
+                    UPDATE "vote" SET "voice" = _voice_
+                    WHERE "user" = _user_ AND "thread" = _thread_id_;
 
                     UPDATE "thread" SET
                         "num_votes" = "num_votes" + (2 * _voice_)

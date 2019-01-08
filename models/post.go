@@ -23,3 +23,8 @@ type Posts []Post
 
 //easyjson:json
 type PostFull map[string]interface{}
+
+//easyjson:json
+type PostUpdate struct {
+	Message string `json:"message"`
+}
