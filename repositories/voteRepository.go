@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"database/sql"
 	"tp-project-db/errs"
 	"tp-project-db/models"
 )
@@ -129,7 +130,7 @@ func (r *VoteRepository) Init() error {
 	return nil
 }
 
-func (r *VoteRepository) AddVote(vote *models.Vote, thread *string) (status int) {
+func (r *VoteRepository) AddVote(vote *models.Vote, thread *sql.NullString) (status int) {
 	var id interface{} = nil
 	if vote.ThreadID != 0 {
 		id = &vote.ThreadID
