@@ -3,6 +3,8 @@ package repositories
 import (
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
+	"github.com/jackc/pgx"
 	"net/http"
 	"tp-project-db/errs"
 	"tp-project-db/models"
@@ -116,6 +118,8 @@ const (
 	SelectThreadBySlugStatement           = "select_thread_by_slug_statement"
 	SelectThreadForumByIDStatement        = "select_thread_forum_by_id_statement"
 	SelectThreadIDAndForumBySlugStatement = "select_thread_id_and_forum_by_slug_statement"
+	UpdateThreadByIDStatement             = "update_thread_by_id_statement"
+	UpdateThreadBySlugStatement           = "update_thread_by_slug_statement"
 )
 
 type ThreadRepository struct {
@@ -206,6 +210,36 @@ func (r *ThreadRepository) Init() error {
         SELECT th."id", th."forum"
         FROM "thread" th
         WHERE th."slug" = $1;
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(UpdateThreadByIDStatement, `
+        UPDATE "thread" SET
+            ("title","message") = (
+                replace_if_empty($2,"title"),
+                replace_if_empty($3,"message")
+            )
+        WHERE "id" = $1
+        RETURNING
+            "id","slug","title","forum","author",
+            "created_timestamp","message","num_votes";
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(UpdateThreadBySlugStatement, `
+        UPDATE "thread" SET
+            ("title","message") = (
+                replace_if_empty($2,"title"),
+                replace_if_empty($3,"message")
+            )
+        WHERE "slug" = $1
+        RETURNING
+            "id","slug","title","forum","author",
+            "created_timestamp","message","num_votes";
     `)
 	if err != nil {
 		return err
@@ -302,4 +336,100 @@ func (r *ThreadRepository) FindThreadIDAndForumBySlug(args *CreatePostArgs) *err
 		return r.notFoundErr
 	}
 	return nil
+}
+
+type ForumThreadsSearchArgs struct {
+	Forum string
+	Since models.NullTimestamp
+	Desc  bool
+	Limit int
+}
+
+func (r *ThreadRepository) FindThreadsByForum(args *ForumThreadsSearchArgs) (*models.Threads, *errs.Error) {
+	queryArgs := []interface{}{args.Forum}
+	queryArgsCounter := 1
+
+	query := `SELECT ` + ThreadAttributes + ` FROM "thread" th WHERE th."forum" = $1 `
+	if args.Since.Valid {
+		queryArgsCounter++
+		queryArgs = append(queryArgs, args.Since.Timestamp)
+
+		var eqOp string
+		if args.Desc {
+			eqOp = "<="
+		} else {
+			eqOp = ">="
+		}
+
+		query += fmt.Sprintf(`AND th."created_timestamp" %s $%d`, eqOp, queryArgsCounter)
+	}
+	query += ` ORDER BY th."created_timestamp"`
+	if args.Desc {
+		query += ` DESC`
+	} else {
+		query += ` ASC`
+	}
+	if args.Limit != 0 {
+		queryArgsCounter++
+		queryArgs = append(queryArgs, args.Limit)
+		query += fmt.Sprintf(` LIMIT $%d;`, queryArgsCounter)
+	}
+
+	rows, err := r.conn.conn.Query(query, queryArgs...)
+	if err != nil {
+		return nil, r.forumNotFoundErr
+	}
+	defer rows.Close()
+
+	threads := make([]models.Thread, 0)
+	for rows.Next() {
+		var thread models.Thread
+		err = r.scanThread(rows.Scan, &thread)
+		if err != nil {
+			panic(err)
+		}
+		threads = append(threads, thread)
+	}
+
+	if len(threads) == 0 {
+		var exists bool
+		row := r.conn.conn.QueryRow(SelectForumExistsBySlugStatement, &args.Forum)
+		if _ = row.Scan(&exists); !exists {
+			return nil, r.forumNotFoundErr
+		}
+	}
+
+	return (*models.Threads)(&threads), nil
+}
+
+func (r *ThreadRepository) UpdateThreadByID(thread *models.Thread) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(UpdateThreadByIDStatement,
+			&thread.ID, &thread.Title, &thread.Message,
+		)
+		if err := r.scanThread(row.Scan, thread); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
+}
+
+func (r *ThreadRepository) UpdateThreadBySlug(thread *models.Thread) *errs.Error {
+	return r.conn.performTxOp(func(tx *pgx.Tx) *errs.Error {
+		row := tx.QueryRow(UpdateThreadBySlugStatement,
+			&thread.Slug.String, &thread.Title, &thread.Message,
+		)
+		if err := r.scanThread(row.Scan, thread); err != nil {
+			return r.notFoundErr
+		}
+		return nil
+	})
+}
+
+func (r *ThreadRepository) scanThread(f ScanFunc, thread *models.Thread) error {
+	return f(
+		&thread.ID, &thread.Slug, &thread.Title,
+		&thread.Forum, &thread.Author, &thread.CreatedTimestamp,
+		&thread.Message, &thread.NumVotes,
+	)
 }

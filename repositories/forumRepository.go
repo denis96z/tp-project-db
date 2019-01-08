@@ -89,8 +89,9 @@ const (
         $$ LANGUAGE PLPGSQL;
     `
 
-	InsertForumStatement       = "insert_forum_statement"
-	SelectForumBySlugStatement = "select_forum_by_slug_statement"
+	InsertForumStatement             = "insert_forum_statement"
+	SelectForumExistsBySlugStatement = "select_forum_exists_by_slug_statement"
+	SelectForumBySlugStatement       = "select_forum_by_slug_statement"
 )
 
 type ForumRepository struct {
@@ -117,6 +118,13 @@ func (r *ForumRepository) Init() error {
 
 	err = r.conn.prepareStmt(InsertForumStatement, `
         SELECT * FROM insert_forum($1,$2,$3);
+    `)
+	if err != nil {
+		return err
+	}
+
+	err = r.conn.prepareStmt(SelectForumExistsBySlugStatement, `
+        SELECT EXISTS(SELECT * FROM "forum" f WHERE f."slug" = $1);
     `)
 	if err != nil {
 		return err
